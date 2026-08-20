@@ -1,0 +1,24 @@
+version: '3.9'
+
+# Development override — adds hot-reload via a bind mount and runs the
+# Nest CLI's watch mode instead of the production entrypoint (so Prisma
+# migrations are NOT auto-applied here; run `npm run prisma:migrate`
+# yourself the first time and after schema changes).
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  api:
+    build:
+      target: builder
+    entrypoint: []
+    command: ['npm', 'run', 'start:dev']
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./test:/app/test
+    healthcheck:
+      disable: true

@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+dist/
+.env
+.env.*
+!.env.example
+credentials/*
+!credentials/README.md
+*.zip
+*.log
+.DS_Store
+coverage/

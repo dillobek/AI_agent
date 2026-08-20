@@ -1,0 +1,121 @@
+version: '3.9'
+
+# Production-shaped default: `docker compose up --build` builds the
+# multi-stage image, runs Prisma migrations automatically on container
+# start (see docker/entrypoint.sh), and does NOT bind-mount source code.
+#
+# For local development with hot reload, layer the dev override:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# See docs/installation.md.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-assistant-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ai_assistant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ai_assistant_password}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_assistant_db}
+    ports:
+      # Bound to 127.0.0.1 only — the database is never exposed to the
+      # network by default. Remove the "127.0.0.1:" prefix only if you
+      # understand the exposure and have your own firewall/network rules.
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-ai_assistant}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  chromadb:
+    # Optional (RAG_ENABLED): start with `docker compose --profile rag up`.
+    profiles: ['rag']
+    image: chromadb/chroma:0.5.20
+    container_name: ai-assistant-chromadb
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8000:8000'
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: 'TRUE'
+      ANONYMIZED_TELEMETRY: 'FALSE'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O - http://localhost:8000/api/v1/heartbeat || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-assistant-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/health/live', r => process.exit(r.statusCode===200?0:1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: ai-assistant-dashboard
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1/healthz']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # Workflow automation engine — used to orchestrate cross-system
+  # automations by calling the API's secured /n8n/trigger endpoint and
+  # receiving outbound webhooks from it. Official image, pinned to a known
+  # tag, basic-auth protected, and NOT exposed outside localhost.
+  n8n:
+    # Optional (N8N_ENABLED): start with `docker compose --profile n8n up`.
+    profiles: ['n8n']
+    image: docker.n8n.io/n8nio/n8n:1.62.1
+    container_name: ai-assistant-n8n
+    restart: unless-stopped
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-UTC}
+      N8N_BASIC_AUTH_ACTIVE: 'true'
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:?set N8N_BASIC_AUTH_PASSWORD in .env}
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+      N8N_TEMPLATES_ENABLED: 'false'
+    ports:
+      - '127.0.0.1:5678:5678'
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  chroma_data:
+  n8n_data:

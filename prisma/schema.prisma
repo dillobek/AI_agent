@@ -1,0 +1,189 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  telegramId   BigInt    @unique
+  name         String
+  role         Role      @default(USER)
+  /// bcrypt hash. Null until the user completes onboarding (POST /auth/register-admin
+  /// for the first admin, or an admin-created invite for subsequent users).
+  passwordHash String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([role])
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+/// JWTs are stateless by design; to support real logout/invalidation we
+/// record revoked token IDs (jti) here and check them in JwtStrategy.
+/// A scheduled job prunes rows past their token's original expiry.
+model RevokedToken {
+  jti       String   @id
+  userId    String
+  revokedAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+/// Tracks failed login attempts for rate-limiting/lockout, keyed by the
+/// identifier used at login (telegramId) plus the source IP. Persisted
+/// (rather than in-memory) so lockouts survive process restarts.
+model LoginAttempt {
+  id          String   @id @default(uuid())
+  identifier  String // telegramId being logged into
+  ipAddress   String
+  succeeded   Boolean
+  createdAt   DateTime @default(now())
+
+  @@index([identifier, createdAt])
+}
+
+model Patient {
+  id             String         @id @default(uuid())
+  fullName       String
+  /// Lowercased, whitespace-collapsed fullName, used for reliable exact/prefix
+  /// lookups and to detect likely-duplicate patients at creation time.
+  normalizedName String
+  phone          String?
+  status         PatientStatus  @default(ACTIVE)
+  prescriptions  Prescription[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([normalizedName, phone])
+  @@index([normalizedName])
+  @@index([status])
+}
+
+enum PatientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+model Prescription {
+  id           String   @id @default(uuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  diagnosis    String
+  medications  Json
+  visitDate    DateTime
+  driveFileUrl String?
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, visitDate])
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  /// NUMERIC(14,2) — never Float for money (floating point cannot represent
+  /// currency exactly and accumulates rounding error).
+  amount      Decimal         @db.Decimal(14, 2)
+  type        TransactionType
+  category    String
+  description String?
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+
+  @@index([type, date])
+  @@index([category])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+/// Idempotency ledger for inbound webhooks (currently: Finance receipts).
+/// The unique constraint on `signature` is what makes a replayed request
+/// with the same HMAC signature fail on the second attempt.
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  source     String
+  signature  String   @unique
+  receivedAt DateTime @default(now())
+
+  @@index([source, receivedAt])
+}
+
+/// Debug/tool-activity log for the dashboard's "execution logs" view.
+/// Inputs/outputs are redacted (see RedactionService) before being written
+/// here — this is NOT the audit trail (see AuditLog) and is subject to
+/// LOG_RETENTION_DAYS cleanup.
+model ExecutionLog {
+  id        String   @id @default(uuid())
+  actor     String // "telegram:<id>" | "dashboard:<userId>" | "n8n-inbound" | "n8n-outbound" | "ai-agent"
+  toolName  String?
+  input     Json?
+  output    Json?
+  success   Boolean  @default(true)
+  errorMsg  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Security audit trail: who did what, to which resource, when — deliberately
+/// separate from ExecutionLog so it can be retained longer and never carries
+/// prompt/diagnosis/PII payloads, only resource identifiers.
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorLabel String // fallback label when there's no User row (e.g. "telegram:123", "n8n")
+  action     String // e.g. "patient.search", "finance.summary.view", "auth.login"
+  resource   String? // e.g. "patient:<id>"
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// Per-channel, per-user conversation memory for the Gemini agent loop.
+/// `channelKey` isolates memory (e.g. "telegram:123456789", "dashboard:<userId>")
+/// so one Telegram user's conversation can never leak into another's.
+model ConversationSession {
+  id         String   @id @default(uuid())
+  channelKey String   @unique
+  history    Json // array of { role, parts } turns, size-capped by the agent service
+  expiresAt  DateTime
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// Indexed knowledge-base documents (Obsidian / Drive) for the RAG pipeline.
+/// One row per source document; chunks live only in the vector store,
+/// referenced back here by `id` (used as the deterministic chunk-ID prefix).
+model KnowledgeDocument {
+  id           String   @id @default(uuid())
+  source       String // "obsidian" | "drive"
+  title        String
+  path         String?
+  ownerId      String? // optional owning user, for future per-user document ACLs
+  contentHash  String // sha256 of the last-indexed content, to skip unchanged re-syncs
+  chunkCount   Int      @default(0)
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+
+  @@unique([source, path])
+  @@index([source])
+}

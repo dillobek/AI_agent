@@ -1,0 +1,33 @@
+allowBuilds:
+  '@google/genai': false
+  '@nestjs/core': true
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  bcrypt: true
+  esbuild: true
+  protobufjs: false
+  prisma: true
+packages:
+  - '.'
+  - 'dashboard-frontend'
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - bcrypt
+  - esbuild
+  - prisma
+
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
+
+overrides:
+  body-parser: '>=1.20.6'
+  js-yaml: '>=4.1.2'
+  lodash: '>=4.17.24'
+  multer: '>=2.2.0'
+  qs: '>=6.15.2'
+  tar: '>=7.5.21'
+  uuid: '>=11.1.1'
