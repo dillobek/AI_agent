@@ -201,6 +201,34 @@ Instagram should use Meta's official Professional-account messaging API and feed
 `PersonalAssistantService`; it is not enabled merely by setting `INSTAGRAM_ENABLED=true` until
 Meta OAuth/webhook credentials and the platform connector are provisioned.
 
+### 8.3 Telegram channel posts with generated images
+
+The personal Telegram account must be an administrator in the destination channel. Configure a
+private image-worker URL in `CHANNEL_IMAGE_GENERATION_WEBHOOK_URL`; it receives
+`{"prompt":"..."}` and must return `{"imageUrl":"https://..."}`. An n8n workflow can connect
+this endpoint to your preferred image-generation provider. Then an authenticated admin can call:
+
+```http
+POST /personal-automation/channel-posts/publish
+Authorization: Bearer <dashboard-admin-jwt>
+Content-Type: application/json
+
+{
+  "channelId": "@my_channel",
+  "caption": "Bugungi post matni",
+  "imagePrompt": "Editorial illustration for a Telegram post about ...; no text, no watermark"
+}
+```
+
+The system creates the image first, posts it with the caption, then keeps an auditable status in
+the dashboard API. Failed posts are retained as `FAILED`; nothing is silently retried or posted
+twice.
+
+In the dashboard, open **Kanallar** → add the channel (`@username` or ID) → choose it → upload a
+`.md` policy. The content composer reads that channel's policy for every generated post. Start
+from [`docs/channel-policy-template.md`](docs/channel-policy-template.md) and adapt its audience,
+voice, allowed post formats, visual rules and prohibitions before uploading it.
+
 ### 8.2 Google Gemini API key
 1. Go to https://aistudio.google.com/app/apikey.
 2. Create a key, put it in `GEMINI_API_KEY`.

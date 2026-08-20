@@ -73,6 +73,12 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
     return decision;
   }
 
+  /** Publishes only to a channel where the authenticated owner is an admin. */
+  async publishChannelPost(channelId: string, caption: string, imageUrl: string): Promise<void> {
+    if (!this.client) throw new Error('Personal Telegram connector is not connected');
+    await this.client.sendFile(channelId, { file: imageUrl, caption });
+  }
+
   private async onTelegramEvent(event: NewMessageEvent): Promise<void> {
     if (!event.isPrivate || !event.message.senderId || !this.client) return;
     const sender = await event.message.getSender();

@@ -245,3 +245,44 @@ model PersonalMessage {
   @@index([conversationId, sentAt])
   @@unique([conversationId, externalId])
 }
+
+/// An auditable channel publication request. The generated image itself stays
+/// in the configured image provider/CDN; only its reference is retained.
+model ChannelPost {
+  id          String            @id @default(uuid())
+  platform    PersonalPlatform
+  channelId   String
+  caption     String
+  imagePrompt String?
+  imageUrl    String?
+  status      ChannelPostStatus @default(DRAFT)
+  error       String?
+  publishedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([platform, channelId, status])
+  @@index([createdAt])
+}
+
+/// Owner-managed channel settings. `contentPolicyMarkdown` is uploaded from
+/// the dashboard and tells the composer what themes, voice and formats fit
+/// this particular channel.
+model ManagedChannel {
+  id                    String   @id @default(uuid())
+  platform              PersonalPlatform
+  channelId             String
+  title                 String
+  contentPolicyMarkdown String   @default("")
+  policyFileName        String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([platform, channelId])
+}
+
+enum ChannelPostStatus {
+  DRAFT
+  PUBLISHED
+  FAILED
+}

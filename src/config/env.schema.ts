@@ -94,6 +94,9 @@ export const envSchema = z
     PERSONAL_TELEGRAM_SESSION: z.string().optional().default(''),
     PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY: z.string().optional().default(''),
     PERSONAL_REPLY_MAX_HISTORY: intEnv(24),
+    // Your image worker (n8n, OpenAI-compatible service, etc.) receives
+    // { prompt } and returns { imageUrl }. Keep its URL private.
+    CHANNEL_IMAGE_GENERATION_WEBHOOK_URL: z.string().url().optional().or(z.literal('')).default(''),
 
     // ---- AI provider (Gemini today, adapter-based so others can be added) ----
     AI_PROVIDER: z.enum(['gemini']).default('gemini'),

@@ -39,6 +39,9 @@ export default function App() {
           <li>
             <NavLink to="/logs">Execution Logs</NavLink>
           </li>
+          <li>
+            <NavLink to="/channels">Kanallar</NavLink>
+          </li>
         </ul>
         <button onClick={logout}>Log out</button>
       </nav>

@@ -7,6 +7,7 @@ import StatusPage from './pages/StatusPage';
 import PatientsPage from './pages/PatientsPage';
 import FinancePage from './pages/FinancePage';
 import LogsPage from './pages/LogsPage';
+import ChannelsPage from './pages/ChannelsPage';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="finance" element={<FinancePage />} />
           <Route path="patients" element={<PatientsPage />} />
           <Route path="logs" element={<LogsPage />} />
+          <Route path="channels" element={<ChannelsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
