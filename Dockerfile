@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 ENV CI=true
 RUN apk add --no-cache openssl
@@ -15,7 +15,7 @@ RUN pnpm run build
 # Drop dev dependencies from node_modules before copying into the runtime stage.
 RUN pnpm prune --prod
 
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache openssl
