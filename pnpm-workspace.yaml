@@ -8,9 +8,9 @@ allowBuilds:
   esbuild: true
   protobufjs: false
   prisma: true
-  bufferutil: set this to true or false
-  es5-ext: set this to true or false
-  utf-8-validate: set this to true or false
+  bufferutil: false
+  es5-ext: false
+  utf-8-validate: false
 packages:
   - '.'
   - 'dashboard-frontend'
@@ -26,6 +26,9 @@ onlyBuiltDependencies:
 
 ignoredBuiltDependencies:
   - '@scarf/scarf'
+  - bufferutil
+  - es5-ext
+  - utf-8-validate
 
 overrides:
   body-parser: '>=1.20.6'

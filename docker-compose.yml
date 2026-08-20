@@ -1,5 +1,3 @@
-version: '3.9'
-
 # Production-shaped default: `docker compose up --build` builds the
 # multi-stage image, runs Prisma migrations automatically on container
 # start (see docker/entrypoint.sh), and does NOT bind-mount source code.
@@ -57,6 +55,8 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - '127.0.0.1:4200:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +73,8 @@ services:
       dockerfile: Dockerfile.dashboard
     container_name: ai-assistant-dashboard
     restart: unless-stopped
+    ports:
+      - '127.0.0.1:4201:80'
     depends_on:
       api:
         condition: service_healthy
@@ -88,6 +90,8 @@ services:
       dockerfile: Dockerfile.landing
     container_name: aipixel-landing
     restart: unless-stopped
+    ports:
+      - '127.0.0.1:4203:80'
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1/']
       interval: 15s
@@ -95,6 +99,9 @@ services:
       retries: 5
 
   caddy:
+    # Optional alternative to an existing host Nginx. On servers already
+    # running Nginx/Certbot, leave this profile off and use ports 4200/4201/4203.
+    profiles: ['caddy']
     image: caddy:2.8-alpine
     container_name: aipixel-proxy
     restart: unless-stopped

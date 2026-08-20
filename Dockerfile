@@ -1,7 +1,9 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
+ENV CI=true
+RUN apk add --no-cache openssl
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY dashboard-frontend/package.json ./dashboard-frontend/package.json
@@ -13,9 +15,10 @@ RUN pnpm run build
 # Drop dev dependencies from node_modules before copying into the runtime stage.
 RUN pnpm prune --prod
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache openssl
 
 # Run as a non-root, unprivileged user rather than the container default (root).
 RUN addgroup -S app && adduser -S app -G app
