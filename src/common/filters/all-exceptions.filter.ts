@@ -26,6 +26,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
   constructor(private readonly config?: AppConfigService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
+    // HTTP response helpers do not exist in RPC/Telegraf contexts. Those
+    // integrations own their response/error lifecycle, so only log here.
+    if (host.getType<string>() !== 'http') {
+      this.logger.error(
+        `[${host.getType<string>()}] ${exception instanceof Error ? exception.message : String(exception)}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+      return;
+    }
+
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();

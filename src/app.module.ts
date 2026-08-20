@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppConfigModule } from './config/app-config.module';
 import { AppConfigService } from './config/app-config.service';
@@ -19,6 +19,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { N8nModule } from './n8n/n8n.module';
 import { AutonomyModule } from './autonomy/autonomy.module';
 import { readModuleFlagsFromEnv } from './config/module-flags.util';
+import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 
 // Read once, at module-graph construction time (see module-flags.util.ts for why).
 const flags = readModuleFlagsFromEnv();
@@ -64,7 +65,7 @@ const flags = readModuleFlagsFromEnv();
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: HttpThrottlerGuard,
     },
   ],
 })
