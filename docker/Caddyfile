@@ -1,0 +1,13 @@
+{
+    email {$ACME_EMAIL}
+}
+
+aipixel.uz, www.aipixel.uz {
+    encode zstd gzip
+    reverse_proxy landing:80
+}
+
+ser.aipixel.uz {
+    encode zstd gzip
+    reverse_proxy dashboard:80
+}

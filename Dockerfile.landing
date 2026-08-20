@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+FROM node:20-alpine AS builder
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY landing-frontend/package.json ./landing-frontend/package.json
+COPY dashboard-frontend/package.json ./dashboard-frontend/package.json
+RUN pnpm install --frozen-lockfile
+COPY landing-frontend ./landing-frontend
+RUN pnpm --dir landing-frontend build
+
+FROM nginx:1.27-alpine
+COPY --from=builder /app/landing-frontend/dist /usr/share/nginx/html
+EXPOSE 80

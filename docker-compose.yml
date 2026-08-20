@@ -57,8 +57,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    ports:
-      - '3000:3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -75,8 +73,6 @@ services:
       dockerfile: Dockerfile.dashboard
     container_name: ai-assistant-dashboard
     restart: unless-stopped
-    ports:
-      - '8080:80'
     depends_on:
       api:
         condition: service_healthy
@@ -85,6 +81,38 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  landing:
+    build:
+      context: .
+      dockerfile: Dockerfile.landing
+    container_name: aipixel-landing
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '-', 'http://127.0.0.1/']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: aipixel-proxy
+    restart: unless-stopped
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      dashboard:
+        condition: service_healthy
+      landing:
+        condition: service_healthy
 
   # Workflow automation engine — used to orchestrate cross-system
   # automations by calling the API's secured /n8n/trigger endpoint and
@@ -119,3 +147,5 @@ volumes:
   postgres_data:
   chroma_data:
   n8n_data:
+  caddy_data:
+  caddy_config:

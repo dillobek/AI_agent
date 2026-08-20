@@ -4,6 +4,7 @@ WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY dashboard-frontend/package.json ./dashboard-frontend/package.json
+COPY landing-frontend/package.json ./landing-frontend/package.json
 RUN pnpm install --frozen-lockfile
 COPY dashboard-frontend ./dashboard-frontend
 RUN pnpm --dir dashboard-frontend build
