@@ -2,8 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Assistant Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#08090d" />
+    <meta name="description" content="AI Personal Assistant — agent console and operations dashboard." />
+    <title>Assistant · AI Console</title>
+
+    <!--
+      Inter (UI) + JetBrains Mono (tool names, timings, IDs).
+      Progressive enhancement only: theme.css declares a full system-font
+      fallback stack, so the app renders correctly if these never load
+      (offline installs, air-gapped deployments, blocked CDNs).
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Inline so the dark surface paints before the bundle evaluates — no white flash. -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #08090d;
+        color: #e8eaf0;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

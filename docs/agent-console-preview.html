@@ -1,0 +1,1876 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Assistant · AI Console — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================================
+   AI Personal Assistant — Design System
+   Dark, agent-first. Cyan → Violet accent. All tokens live here; components
+   reference variables only, so re-theming is a single-file change.
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------- */
+
+:root {
+  /* Surfaces — layered, each step slightly lighter than the last */
+  --bg-base: #08090d;
+  --bg-sunken: #05060a;
+  --bg-elevated: #0e1016;
+  --bg-panel: #12141c;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.07);
+
+  --glass: rgba(18, 20, 28, 0.72);
+  --glass-strong: rgba(14, 16, 22, 0.88);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(34, 211, 238, 0.35);
+
+  /* Text */
+  --text: #e8eaf0;
+  --text-secondary: #9ba3b4;
+  --text-muted: #626b7e;
+  --text-faint: #3f4657;
+
+  /* Accent */
+  --cyan: #22d3ee;
+  --cyan-dim: #0e7490;
+  --violet: #a78bfa;
+  --violet-dim: #6d28d9;
+  --gradient: linear-gradient(135deg, #22d3ee 0%, #818cf8 50%, #a78bfa 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(34, 211, 238, 0.14) 0%, rgba(167, 139, 250, 0.14) 100%);
+
+  /* Semantic */
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.1);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.1);
+  --danger: #f87171;
+  --danger-bg: rgba(248, 113, 113, 0.1);
+  --info: #60a5fa;
+
+  /* Glow */
+  --glow-cyan: 0 0 24px rgba(34, 211, 238, 0.25);
+  --glow-violet: 0 0 24px rgba(167, 139, 250, 0.22);
+  --glow-success: 0 0 16px rgba(52, 211, 153, 0.35);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-xl: 0 24px 72px rgba(0, 0, 0, 0.65);
+
+  /* Geometry */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* Type */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --fast: 140ms;
+  --normal: 240ms;
+  --slow: 420ms;
+
+  /* Layout */
+  --sidebar-w: 264px;
+  --header-h: 64px;
+}
+
+/* ---------- 2. Reset & base ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg-base);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+  overflow: hidden;
+}
+
+/* Ambient background: two slow-drifting gradient orbs + a fine grid.
+   Purely decorative, sits behind everything, never intercepts pointer events. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(620px circle at 12% 8%, rgba(34, 211, 238, 0.09), transparent 60%),
+    radial-gradient(680px circle at 88% 92%, rgba(167, 139, 250, 0.09), transparent 60%),
+    radial-gradient(900px circle at 50% 50%, rgba(99, 102, 241, 0.04), transparent 70%);
+  animation: ambient-drift 24s var(--ease) infinite alternate;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 80% at 50% 0%, #000 40%, transparent 100%);
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+h1 { font-size: 24px; }
+h2 { font-size: 19px; }
+h3 { font-size: 16px; }
+
+a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color var(--fast) var(--ease);
+}
+
+a:hover { color: var(--violet); }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+code, pre, .mono {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  font-variant-ligatures: none;
+}
+
+/* ---------- 3. Accessibility ---------- */
+
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+:focus:not(:focus-visible) { outline: none; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 999;
+  padding: 10px 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--r-md);
+  transform: translateY(-200%);
+  transition: transform var(--fast) var(--ease);
+}
+
+.skip-link:focus { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------- 4. Scrollbars ---------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--r-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: content-box;
+}
+
+/* ---------- 5. Keyframes ---------- */
+
+@keyframes ambient-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(0, -1.5%, 0) scale(1.06); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+@keyframes bounce-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40%           { transform: translateY(-5px); opacity: 1; }
+}
+
+@keyframes gradient-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ---------- 6. Utility primitives ---------- */
+
+.gradient-text {
+  background: var(--gradient);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: gradient-flow 6s ease infinite;
+}
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+}
+
+/* A hairline of accent light along the top edge — used on hero/primary panels */
+.panel-lit {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-lit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.55), rgba(167, 139, 250, 0.55), transparent);
+}
+
+/* The brand orb — the agent's "presence". Shared by the login screen and the
+   console's empty state, so it lives in the theme rather than either page. */
+.orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: var(--gradient);
+  background-size: 200% auto;
+  color: #05060a;
+  animation: gradient-flow 7s ease infinite;
+  box-shadow: 0 0 44px rgba(34, 211, 238, 0.3), 0 0 90px rgba(167, 139, 250, 0.18);
+}
+
+.orb::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 32px;
+  border: 1px solid rgba(34, 211, 238, 0.16);
+  animation: pulse-ring 3.2s ease-out infinite;
+}
+
+.stack { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.gap-6 { gap: 24px; }
+.grow { flex: 1; min-width: 0; }
+.wrap { flex-wrap: wrap; }
+
+.muted { color: var(--text-muted); }
+.secondary { color: var(--text-secondary); }
+.tiny { font-size: 11px; }
+.small { font-size: 12px; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.animate-in { animation: fade-in-up var(--slow) var(--ease-out) both; }
+
+/* ---------- 7. Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text);
+  white-space: nowrap;
+  transition: all var(--fast) var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled) { transform: translateY(0); }
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--gradient);
+  background-size: 150% auto;
+  border-color: transparent;
+  color: #05060a;
+  font-weight: 600;
+  box-shadow: var(--glow-cyan);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-position: right center;
+  box-shadow: 0 0 32px rgba(34, 211, 238, 0.4);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.btn-sm { height: 30px; padding: 0 11px; font-size: 12px; }
+.btn-icon { width: 34px; height: 34px; padding: 0; }
+
+/* ---------- 8. Inputs ---------- */
+
+.input {
+  width: 100%;
+  height: 40px;
+  padding: 0 13px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  transition: all var(--fast) var(--ease);
+}
+
+.input::placeholder { color: var(--text-faint); }
+
+.input:hover { border-color: var(--border-strong); }
+
+.input:focus {
+  outline: none;
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.field { margin-bottom: 16px; }
+
+/* ---------- 9. Badges, pills, status dots ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.badge-success { background: var(--success-bg); border-color: rgba(52, 211, 153, 0.28); color: var(--success); }
+.badge-warning { background: var(--warning-bg); border-color: rgba(251, 191, 36, 0.28); color: var(--warning); }
+.badge-danger  { background: var(--danger-bg);  border-color: rgba(248, 113, 113, 0.28); color: var(--danger); }
+.badge-accent  { background: rgba(34, 211, 238, 0.1); border-color: var(--border-accent); color: var(--cyan); }
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+
+.dot-live {
+  background: var(--success);
+  box-shadow: var(--glow-success);
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+.dot-warning { background: var(--warning); }
+.dot-danger { background: var(--danger); }
+
+/* ---------- 10. Cards & tables ---------- */
+
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  transition: border-color var(--normal) var(--ease), transform var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
+}
+
+.card-hover:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-value {
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: auto;
+  background: var(--bg-panel);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: top;
+}
+
+tbody tr { transition: background var(--fast) var(--ease); }
+tbody tr:hover { background: var(--bg-hover); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* ---------- 11. Skeleton loading ---------- */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: var(--r-sm);
+}
+
+/* ---------- 12. Scroll area ---------- */
+
+.scroll-area {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+
+/* ============================================================================
+   App shell — sidebar, page frame, headers.
+   ========================================================================== */
+
+.shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--glass-strong);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: var(--header-h);
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--gradient);
+  background-size: 200% auto;
+  color: #05060a;
+  box-shadow: var(--glow-cyan);
+  animation: gradient-flow 7s ease infinite;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.brand-sub {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 12px;
+}
+
+.nav-section {
+  margin: 16px 0 7px;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+
+.nav-section:first-child { margin-top: 0; }
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 11px;
+  margin-bottom: 2px;
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--fast) var(--ease);
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--gradient-soft);
+  color: var(--text);
+}
+
+/* Accent bar on the active item */
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--gradient);
+  box-shadow: var(--glow-cyan);
+}
+
+.nav-item.active svg { color: var(--cyan); }
+
+.nav-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-faint);
+}
+
+/* ---------- Sidebar footer ---------- */
+
+.sidebar-footer {
+  flex-shrink: 0;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.conn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  margin-bottom: 8px;
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-radius: var(--r-md);
+  transition: background var(--fast) var(--ease);
+}
+
+.user-row:hover { background: var(--bg-hover); }
+
+.user-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gradient-soft);
+  border: 1px solid var(--border-strong);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* ---------- Main area ---------- */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 32px 40px;
+}
+
+.page-head {
+  margin-bottom: 24px;
+  animation: fade-in-up var(--normal) var(--ease-out) both;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 5px;
+}
+
+.page-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  max-width: 620px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.grid-stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.grid-cards { grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); }
+
+/* ---------- Mobile ---------- */
+
+.menu-btn { display: none; }
+
+.scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  animation: fade-in var(--fast) var(--ease) both;
+}
+
+@media (max-width: 860px) {
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    transform: translateX(-100%);
+    transition: transform var(--normal) var(--ease);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .sidebar.open { transform: translateX(0); }
+
+  .scrim.show { display: block; }
+
+  .menu-btn {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 25;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--r-md);
+    border: 1px solid var(--border);
+    background: var(--glass-strong);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: var(--text);
+  }
+
+  .page { padding: 66px 16px 28px; }
+  .console-header { padding-left: 62px; }
+}
+
+
+/* ============================================================================
+   Agent Console — styles specific to the chat surface.
+   ========================================================================== */
+
+.console {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ---------- Header ---------- */
+
+.console-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+/* ---------- Avatar ---------- */
+
+.avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--gradient);
+  background-size: 200% auto;
+  color: #05060a;
+  flex-shrink: 0;
+  box-shadow: var(--glow-cyan);
+  animation: gradient-flow 7s ease infinite;
+}
+
+.avatar-sm { width: 28px; height: 28px; border-radius: 8px; }
+
+.avatar-thinking::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  border: 1.5px solid transparent;
+  border-top-color: var(--cyan);
+  border-right-color: var(--violet);
+  animation: spin 1.1s linear infinite;
+}
+
+/* ---------- Message stream ---------- */
+
+.stream {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 24px 8px;
+}
+
+.stream-inner {
+  max-width: 820px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.msg {
+  display: flex;
+  gap: 13px;
+  animation: fade-in-up var(--slow) var(--ease-out) both;
+}
+
+.msg-user { justify-content: flex-end; }
+
+.bubble-user {
+  max-width: 76%;
+  padding: 11px 15px;
+  border-radius: var(--r-lg) var(--r-lg) var(--r-sm) var(--r-lg);
+  background: var(--gradient-soft);
+  border: 1px solid rgba(167, 139, 250, 0.22);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.msg-agent-body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.agent-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.agent-text {
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.agent-text strong { color: var(--text); }
+
+/* The blinking caret shown while text is still being revealed */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--cyan);
+  animation: blink 1s step-end infinite;
+}
+
+.msg-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+}
+
+.msg:hover .msg-actions,
+.msg:focus-within .msg-actions { opacity: 1; }
+
+/* ---------- Tool trace ---------- */
+
+.trace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.trace-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-sunken);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  animation: scale-in var(--normal) var(--ease-out) both;
+}
+
+.trace-item-ok { border-color: rgba(52, 211, 153, 0.22); }
+.trace-item-fail { border-color: rgba(248, 113, 113, 0.28); }
+
+.trace-name { color: var(--text); font-weight: 500; }
+.trace-meta { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+
+/* ---------- Thinking ---------- */
+
+.thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.dots { display: inline-flex; gap: 3.5px; }
+
+.dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: bounce-dot 1.3s ease-in-out infinite;
+}
+
+.dots span:nth-child(2) { animation-delay: 0.16s; }
+.dots span:nth-child(3) { animation-delay: 0.32s; }
+
+/* ---------- Empty state ---------- */
+
+.empty-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6vh 0 0;
+  animation: fade-in var(--slow) var(--ease-out) both;
+}
+
+.empty-hero .orb { margin-bottom: 22px; }
+
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+  gap: 10px;
+  width: 100%;
+  max-width: 660px;
+  margin-top: 30px;
+}
+
+.suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 15px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  transition: all var(--normal) var(--ease);
+}
+
+.suggestion:hover {
+  border-color: var(--border-accent);
+  background: var(--bg-hover);
+  color: var(--text);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.suggestion svg { color: var(--cyan); margin-top: 1px; }
+
+/* ---------- Composer ---------- */
+
+.composer-wrap {
+  flex-shrink: 0;
+  padding: 12px 24px 20px;
+  background: linear-gradient(to top, var(--bg-base) 62%, transparent);
+}
+
+.composer {
+  max-width: 820px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  transition: border-color var(--normal) var(--ease), box-shadow var(--normal) var(--ease);
+}
+
+.composer:focus-within {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-lg), 0 0 0 3px rgba(34, 211, 238, 0.09);
+}
+
+.composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 26px;
+  max-height: 190px;
+  padding: 14px 16px 6px;
+  background: none;
+  border: none;
+  outline: none;
+  resize: none;
+  line-height: 1.6;
+  overflow-y: auto;
+}
+
+.composer textarea::placeholder { color: var(--text-faint); }
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 10px 16px;
+}
+
+.composer-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.composer-hint kbd {
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-hover);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.send-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--gradient);
+  color: #05060a;
+  transition: all var(--fast) var(--ease);
+  box-shadow: var(--glow-cyan);
+}
+
+.send-btn:disabled {
+  background: var(--bg-active);
+  color: var(--text-faint);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.send-btn:not(:disabled):hover { transform: scale(1.06); }
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 720px) {
+  .stream { padding: 20px 14px 8px; }
+  .composer-wrap { padding: 10px 14px 14px; }
+  .console-header { padding: 12px 16px; }
+  .bubble-user { max-width: 88%; }
+  .suggestions { grid-template-columns: 1fr; }
+}
+
+
+/* ---- preview-only chrome ---- */
+body { overflow: hidden; }
+
+/* A class selector like `.console { display:flex }` outranks the UA stylesheet's
+   `[hidden] { display:none }`, so hidden views would still render and stack.
+   (The real React app routes instead of toggling `hidden`, so this is
+   preview-only.) */
+[hidden] { display: none !important; }
+
+.preview-flag {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 60;
+  padding: 5px 11px; border-radius: var(--r-full);
+  background: var(--glass-strong); border: 1px solid var(--border-accent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--cyan); pointer-events: none;
+}
+.nav-item { cursor: pointer; text-decoration: none; }
+
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4" opacity=".55"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Assistant</div>
+        <div class="brand-sub">AI Ecosystem</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item active" data-view="agent" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4" opacity=".55"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+        <span>Agent Console</span>
+      </a>
+
+      <div class="nav-section">Workspace</div>
+      <a class="nav-item" data-view="finance" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5A1.5 1.5 0 004.5 21H21"/><path d="M7.5 15.5l3.5-4 3 2.5L20 7"/></svg>
+        <span>Finance</span>
+      </a>
+      <a class="nav-item" data-view="records" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 20v-1.6a3.4 3.4 0 00-3.4-3.4H6.9a3.4 3.4 0 00-3.4 3.4V20"/><circle cx="10" cy="7.5" r="3.4"/><path d="M20.5 20v-1.6a3.4 3.4 0 00-2.6-3.3M15.5 4.3a3.4 3.4 0 010 6.4" opacity=".6"/></svg>
+        <span>Records</span>
+      </a>
+
+      <div class="nav-section">System</div>
+      <a class="nav-item" data-view="status" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.5-7 4 14 2.5-7H21"/></svg>
+        <span>System Status</span>
+      </a>
+      <a class="nav-item" data-view="logs" href="#">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.1" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.1" fill="currentColor" stroke="none"/></svg>
+        <span>Activity Log</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="conn"><span class="dot dot-live"></span><span>API connected</span></div>
+      <div class="user-row">
+        <div class="user-avatar">A</div>
+        <div class="grow" style="line-height:1.3">
+          <div style="font-size:12.5px;font-weight:500">Signed in</div>
+          <div class="tiny muted">ADMIN</div>
+        </div>
+        <button class="btn btn-ghost btn-icon" title="Log out">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 21H5.5A1.5 1.5 0 014 19.5v-15A1.5 1.5 0 015.5 3h4"/><path d="M16 16.5l4.5-4.5L16 7.5M20.5 12H9.5"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- ================= AGENT CONSOLE ================= -->
+    <section class="view console" data-view="agent">
+      <header class="console-header">
+        <div class="avatar" id="hdrAvatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4" opacity=".55"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <div class="grow">
+          <div class="row gap-2">
+            <h2 style="font-size:15px">Agent Console</h2>
+            <span class="badge badge-success" id="hdrBadge"><span class="dot dot-live"></span>Online</span>
+          </div>
+          <div class="row gap-2 tiny muted" style="margin-top:2px">
+            <span>3 tools available</span><span>·</span><span>Conversation memory is scoped to your account</span>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="resetChat()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11a8.5 8.5 0 10-2.2 6.2"/><path d="M21 4.5V11h-6.5"/></svg>
+          Reset
+        </button>
+      </header>
+
+      <div class="stream scroll-area" id="stream">
+        <div class="stream-inner" id="streamInner">
+          <div class="empty-hero" id="emptyHero">
+            <div class="orb">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4" opacity=".55"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <h1 style="font-size:26px;margin-bottom:8px">How can I <span class="gradient-text">help</span>?</h1>
+            <p class="secondary" style="max-width:460px">Ask in plain language. I can search your connected sources, pull records, and run calculations — and I'll show you exactly which tools I used.</p>
+            <div class="suggestions">
+              <button class="suggestion" onclick="demo(0)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5A1.5 1.5 0 004.5 21H21"/><path d="M7.5 15.5l3.5-4 3 2.5L20 7"/></svg><span>Summarize my income and expenses for last month</span></button>
+              <button class="suggestion" onclick="demo(1)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 20v-1.6a3.4 3.4 0 00-3.4-3.4H6.9a3.4 3.4 0 00-3.4 3.4V20"/><circle cx="10" cy="7.5" r="3.4"/></svg><span>Show the prescription history for a patient by name</span></button>
+              <button class="suggestion" onclick="demo(2)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span>Find the most recent document for a person in Drive</span></button>
+              <button class="suggestion" onclick="demo(3)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 12.5h6L11 22l8.5-10.5h-6L13 2z"/></svg><span>What can you help me with, and what data can you access?</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="composer-wrap">
+        <div class="composer">
+          <textarea id="composer" rows="1" placeholder="Ask the agent anything…"></textarea>
+          <div class="composer-bar">
+            <span class="composer-hint"><kbd>Enter</kbd> to send · <kbd>Shift</kbd>+<kbd>Enter</kbd> for a new line</span>
+            <div class="grow"></div>
+            <button class="send-btn" id="sendBtn" onclick="sendFromComposer()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2.5L11 13"/><path d="M21.5 2.5l-6.7 19-3.8-8.5L2.5 9.2l19-6.7z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FINANCE ================= -->
+    <section class="view page" data-view="finance" hidden>
+      <div class="page-head">
+        <div class="page-title">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16.5A1.5 1.5 0 004.5 21H21"/><path d="M7.5 15.5l3.5-4 3 2.5L20 7"/></svg>
+          <h1>Finance</h1>
+        </div>
+        <p class="page-desc">Income, expenses, and net position for the selected period, broken down by category.</p>
+      </div>
+
+      <div class="row gap-3 wrap" style="margin-bottom:22px">
+        <div class="row gap-1 wrap">
+          <button class="btn btn-sm btn-primary">This month</button>
+          <button class="btn btn-sm">Last 30 days</button>
+          <button class="btn btn-sm">This quarter</button>
+          <button class="btn btn-sm">Year to date</button>
+        </div>
+      </div>
+
+      <div class="grid grid-stats" style="margin-bottom:26px">
+        <div class="card panel-lit">
+          <div class="stat-label" style="margin-bottom:9px">Net profit / loss</div>
+          <div class="stat-value" style="color:var(--success)">+4,281.50</div>
+          <div class="badge badge-success" style="margin-top:10px">▲ Surplus</div>
+        </div>
+        <div class="card">
+          <div class="stat-label" style="margin-bottom:9px">Total income</div>
+          <div class="stat-value">18,940.00</div>
+          <div class="row gap-2" style="margin-top:10px"><span style="width:9px;height:9px;border-radius:2px;background:#0891B2"></span><span class="tiny muted">Money in</span></div>
+        </div>
+        <div class="card">
+          <div class="stat-label" style="margin-bottom:9px">Total expense</div>
+          <div class="stat-value">14,658.50</div>
+          <div class="row gap-2" style="margin-top:10px"><span style="width:9px;height:9px;border-radius:2px;background:#8B5CF6"></span><span class="tiny muted">Money out</span></div>
+        </div>
+        <div class="card">
+          <div class="stat-label" style="margin-bottom:9px">Transactions</div>
+          <div class="stat-value">126</div>
+          <div class="tiny muted" style="margin-top:10px">2026-08-01 → 2026-08-20</div>
+        </div>
+      </div>
+
+      <div class="row gap-3" style="margin-bottom:15px">
+        <h2>By category</h2><div class="grow"></div>
+        <div class="row gap-1">
+          <button class="btn btn-sm btn-primary">Chart</button>
+          <button class="btn btn-sm btn-ghost">Table</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:22px">
+        <div class="row gap-4" style="margin-bottom:18px">
+          <div class="row gap-2"><span style="width:9px;height:9px;border-radius:2px;background:#0891B2"></span><span class="small secondary">Income</span></div>
+          <div class="row gap-2"><span style="width:9px;height:9px;border-radius:2px;background:#8B5CF6"></span><span class="small secondary">Expense</span></div>
+        </div>
+        <div id="bars" style="display:grid;grid-template-columns:minmax(90px,168px) 1fr;gap:0 18px"></div>
+      </div>
+    </section>
+
+    <!-- ================= RECORDS ================= -->
+    <section class="view page" data-view="records" hidden>
+      <div class="page-head">
+        <div class="page-title">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 20v-1.6a3.4 3.4 0 00-3.4-3.4H6.9a3.4 3.4 0 00-3.4 3.4V20"/><circle cx="10" cy="7.5" r="3.4"/></svg>
+          <h1>Records</h1>
+        </div>
+        <p class="page-desc">Look up a person's visit and prescription history. Every search is written to the audit trail.</p>
+      </div>
+
+      <div class="row gap-2" style="margin-bottom:22px;max-width:520px">
+        <div style="position:relative;flex:1">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);display:flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+          <input class="input" style="padding-left:36px" value="Demo Patient" />
+        </div>
+        <button class="btn btn-primary">Search</button>
+      </div>
+
+      <p class="small muted" style="margin-bottom:13px">1 match for “Demo Patient”</p>
+
+      <div class="card card-hover">
+        <div class="row gap-3" style="margin-bottom:14px">
+          <div class="user-avatar">D</div>
+          <div class="grow"><h3 style="font-size:15px">Demo Patient</h3><span class="small muted mono">+1 555 0100</span></div>
+          <span class="badge">3 visits</span>
+        </div>
+        <div class="stack gap-1" style="border-left:1px solid var(--border);padding-left:15px;margin-left:14px">
+          <div style="position:relative;padding:7px 0">
+            <span style="position:absolute;left:-20px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 3px var(--bg-panel)"></span>
+            <div class="row gap-2 wrap"><span class="small mono" style="color:var(--cyan)">12 Aug 2026</span><span class="secondary">Routine follow-up</span></div>
+            <div class="small muted" style="margin-top:2px">Continue current regimen</div>
+          </div>
+          <div style="position:relative;padding:7px 0">
+            <span style="position:absolute;left:-20px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 3px var(--bg-panel)"></span>
+            <div class="row gap-2 wrap"><span class="small mono" style="color:var(--cyan)">3 Jun 2026</span><span class="secondary">Initial consultation</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STATUS ================= -->
+    <section class="view page" data-view="status" hidden>
+      <div class="page-head">
+        <div class="page-title">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3.5l2.5-7 4 14 2.5-7H21"/></svg>
+          <h1>System Status</h1>
+        </div>
+        <p class="page-desc">Live health of the API, database, and every optional module.</p>
+      </div>
+
+      <div class="grid grid-stats" style="margin-bottom:26px">
+        <div class="card panel-lit"><div class="stat-label" style="margin-bottom:10px">Overall</div><div class="row gap-2"><span class="dot dot-live"></span><span class="stat-value" style="font-size:21px">Ok</span></div></div>
+        <div class="card"><div class="stat-label" style="margin-bottom:10px">Database</div><div class="row gap-2"><span class="dot dot-live"></span><span class="stat-value" style="font-size:21px">Up</span></div></div>
+        <div class="card"><div class="stat-label" style="margin-bottom:10px">Modules active</div><div class="stat-value"><span class="gradient-text">4</span><span class="muted" style="font-size:16px;font-weight:400"> / 8</span></div></div>
+        <div class="card"><div class="stat-label" style="margin-bottom:10px">Environment</div><div class="stat-value" style="font-size:21px">development</div><div class="badge badge-warning" style="margin-top:9px">1 needs config</div></div>
+      </div>
+
+      <h2 style="margin-bottom:13px">Modules &amp; integrations</h2>
+      <div class="grid grid-cards" id="modules"></div>
+    </section>
+
+    <!-- ================= LOGS ================= -->
+    <section class="view page" data-view="logs" hidden>
+      <div class="page-head">
+        <div class="page-title">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/></svg>
+          <h1>Activity Log</h1>
+        </div>
+        <p class="page-desc">Every tool the AI agent has executed. Arguments and outputs are redacted before storage.</p>
+      </div>
+
+      <div class="row gap-2" style="padding:9px 13px;margin-bottom:18px;border-radius:var(--r-md);background:rgba(34,211,238,.04);border:1px solid var(--border-accent);align-items:flex-start">
+        <span style="color:var(--cyan);display:flex;margin-top:1px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-9.5V5.5L12 2.5 4 5.5v7c0 6 8 9.5 8 9.5z"/></svg></span>
+        <span class="small secondary">Admin-only view. Entries older than your <code style="color:var(--cyan)">LOG_RETENTION_DAYS</code> setting are purged automatically.</span>
+      </div>
+
+      <div class="row gap-1" style="margin-bottom:14px">
+        <button class="btn btn-sm btn-primary">All <span class="mono tiny" style="opacity:.75">5</span></button>
+        <button class="btn btn-sm btn-ghost">Succeeded <span class="mono tiny" style="opacity:.75">4</span></button>
+        <button class="btn btn-sm btn-ghost">Failed <span class="mono tiny" style="opacity:.75">1</span></button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Actor</th><th>Tool</th><th>Result</th></tr></thead>
+          <tbody id="logRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="preview-flag">Design preview · sample data</div>
+
+<script>
+/* ---------- view switching ---------- */
+document.querySelectorAll('.nav-item').forEach((link) => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const target = link.dataset.view;
+    document.querySelectorAll('.nav-item').forEach((n) => n.classList.toggle('active', n === link));
+    document.querySelectorAll('.view').forEach((v) => {
+      v.hidden = v.dataset.view !== target;
+    });
+  });
+});
+
+/* ---------- agent console demo ---------- */
+
+const SCRIPTED = [
+  {
+    q: 'Summarize my income and expenses for last month',
+    steps: [{ tool: 'calculate_finance_summary', ok: true, ms: 142 }],
+    a:
+      "Here's your **July 2026** summary:\n\n" +
+      '- **Income:** 18,940.00 across 74 transactions\n' +
+      '- **Expense:** 14,658.50 across 52 transactions\n' +
+      '- **Net:** +4,281.50 — a surplus of about 22.6% of income\n\n' +
+      'The largest expense category was `Supplies` at 5,120.00. Income was fairly evenly ' +
+      'distributed, with `Consultations` contributing the most at 8,400.00.',
+  },
+  {
+    q: 'Show the prescription history for a patient by name',
+    steps: [{ tool: 'get_patient_prescriptions', ok: true, ms: 318 }],
+    a:
+      '### Demo Patient\n\n' +
+      '- **12 Aug 2026** — Routine follow-up. Continue current regimen.\n' +
+      '- **3 Jun 2026** — Initial consultation.\n\n' +
+      "> I can summarize what's on record, but I can't offer a diagnosis or change a " +
+      'treatment plan — please confirm anything clinical with the treating physician.',
+  },
+  {
+    q: 'Find the most recent document for a person in Drive',
+    steps: [
+      { tool: 'find_latest_drive_file', ok: false, ms: 91 },
+    ],
+    a:
+      "I couldn't complete that — the Google Drive module is currently disabled, so the " +
+      'document lookup tool is unavailable.\n\nTo enable it, set `GOOGLE_DRIVE_ENABLED=true` ' +
+      'and provide `GOOGLE_APPLICATION_CREDENTIALS` in your `.env`, then restart the API.',
+  },
+  {
+    q: 'What can you help me with, and what data can you access?',
+    steps: [],
+    a:
+      'I can work with the modules this deployment has enabled. Right now that means:\n\n' +
+      '1. **Finance** — income/expense totals, category breakdowns, and net P&L for any date range\n' +
+      '2. **Records** — visit and prescription history lookups by name\n' +
+      '3. **Documents** — locating the most recent file for a person (currently disabled)\n\n' +
+      'I only read what the API exposes to me, and every tool call I make is written to the ' +
+      'activity log. I will not give medical, financial, or legal advice.',
+  },
+];
+
+let busy = false;
+
+function esc(s) {
+  return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+}
+
+/* Tiny markdown → HTML, matching MarkdownLite's supported subset. */
+function md(text) {
+  const inline = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, '<code style="padding:1.5px 5px;border-radius:4px;background:rgba(255,255,255,.07);border:1px solid var(--border);color:var(--cyan)">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
+
+  const out = [];
+  let list = null;
+
+  const flush = () => {
+    if (list) {
+      out.push(`<${list.tag} style="margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:4px">${list.items.map((i) => `<li style="line-height:1.65">${i}</li>`).join('')}</${list.tag}>`);
+      list = null;
+    }
+  };
+
+  text.split('\n').forEach((line) => {
+    const h = /^(#{1,4})\s+(.*)$/.exec(line);
+    const b = /^\s*[-*+]\s+(.*)$/.exec(line);
+    const n = /^\s*\d+[.)]\s+(.*)$/.exec(line);
+    const q = /^>\s?(.*)$/.exec(line);
+
+    if (h) {
+      flush();
+      const sizes = { 1: 18, 2: 16, 3: 14.5, 4: 13.5 };
+      out.push(`<div style="font-size:${sizes[h[1].length]}px;font-weight:600;margin:14px 0 6px;color:var(--text)">${inline(h[2])}</div>`);
+    } else if (b || n) {
+      const tag = n ? 'ol' : 'ul';
+      if (!list || list.tag !== tag) { flush(); list = { tag, items: [] }; }
+      list.items.push(inline((b ? b[1] : n[1])));
+    } else if (q) {
+      flush();
+      out.push(`<blockquote style="margin:10px 0;padding:8px 14px;border-left:2px solid var(--border-accent);background:rgba(34,211,238,.04);border-radius:0 var(--r-sm) var(--r-sm) 0;color:var(--text-secondary)">${inline(q[1])}</blockquote>`);
+    } else if (line.trim()) {
+      flush();
+      out.push(`<p style="margin:7px 0 0;line-height:1.68">${inline(line)}</p>`);
+    }
+  });
+
+  flush();
+  return out.join('');
+}
+
+function fmtMs(ms) {
+  return ms < 1000 ? ms + 'ms' : (ms / 1000).toFixed(1) + 's';
+}
+
+const CHECK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6.5L9.5 17 4 11.5"/></svg>';
+const CROSS = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+const BOLT = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4.5 12.5h6L11 22l8.5-10.5h-6L13 2z"/></svg>';
+const AGENT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4L7 17M17 7l1.4-1.4" opacity=".55"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>';
+
+const inner = () => document.getElementById('streamInner');
+const scrollDown = () => { const s = document.getElementById('stream'); s.scrollTop = s.scrollHeight; };
+
+function hideHero() {
+  const hero = document.getElementById('emptyHero');
+  if (hero) hero.remove();
+}
+
+function addUser(text) {
+  const el = document.createElement('div');
+  el.className = 'msg msg-user';
+  el.innerHTML = `<div class="bubble-user">${esc(text)}</div>`;
+  inner().appendChild(el);
+  scrollDown();
+}
+
+function setBusy(v) {
+  busy = v;
+  document.getElementById('hdrAvatar').classList.toggle('avatar-thinking', v);
+  const badge = document.getElementById('hdrBadge');
+  badge.innerHTML = v ? '<span class="dot dot-warning"></span>Working' : '<span class="dot dot-live"></span>Online';
+  document.getElementById('sendBtn').disabled = v;
+}
+
+function runScript(item) {
+  if (busy) return;
+  hideHero();
+  addUser(item.q);
+  setBusy(true);
+
+  // Thinking bubble with a live timer — mirrors the real component.
+  const think = document.createElement('div');
+  think.className = 'msg';
+  think.innerHTML =
+    `<div class="avatar avatar-sm avatar-thinking">${AGENT_SVG}</div>` +
+    '<div class="msg-agent-body"><div class="agent-name"><span class="gradient-text">Agent</span></div>' +
+    '<div class="thinking"><span class="dots"><span></span><span></span><span></span></span><span>Thinking</span>' +
+    '<span class="mono tiny muted tabular" id="thinkTimer">0.0s</span></div></div>';
+  inner().appendChild(think);
+  scrollDown();
+
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const el = document.getElementById('thinkTimer');
+    if (el) el.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  const total = 900 + item.steps.length * 500;
+
+  setTimeout(() => {
+    clearInterval(tick);
+    think.remove();
+
+    const el = document.createElement('div');
+    el.className = 'msg';
+    const traceHtml = item.steps.length
+      ? `<div class="trace">${item.steps
+          .map(
+            (s, i) =>
+              `<div class="trace-item ${s.ok ? 'trace-item-ok' : 'trace-item-fail'}" style="animation-delay:${i * 70}ms">
+                 <span style="color:${s.ok ? 'var(--cyan)' : 'var(--danger)'};display:flex">${BOLT}</span>
+                 <span class="trace-name">${s.tool}</span>
+                 <span class="trace-meta">${fmtMs(s.ms)}</span>
+                 <span style="color:${s.ok ? 'var(--success)' : 'var(--danger)'};display:flex">${s.ok ? CHECK : CROSS}</span>
+               </div>`,
+          )
+          .join('')}</div>`
+      : '';
+
+    el.innerHTML =
+      `<div class="avatar avatar-sm">${AGENT_SVG}</div>` +
+      `<div class="msg-agent-body"><div class="agent-name"><span class="gradient-text">Agent</span>` +
+      `<span class="muted tiny mono">· ${fmtMs(total)}</span></div>${traceHtml}` +
+      `<div class="agent-text" id="live"></div></div>`;
+    inner().appendChild(el);
+
+    // Typewriter reveal
+    const target = el.querySelector('#live');
+    target.removeAttribute('id');
+    const full = item.a;
+    let i = 0;
+    const chunk = Math.max(1, Math.ceil(full.length / 200));
+    const reveal = setInterval(() => {
+      i += chunk;
+      if (i >= full.length) {
+        target.innerHTML = md(full);
+        clearInterval(reveal);
+        setBusy(false);
+      } else {
+        target.innerHTML = md(full.slice(0, i)) + '<span class="caret"></span>';
+      }
+      scrollDown();
+    }, 16);
+  }, total);
+}
+
+function demo(i) {
+  runScript(SCRIPTED[i]);
+}
+
+function sendFromComposer() {
+  const box = document.getElementById('composer');
+  const text = box.value.trim();
+  if (!text || busy) return;
+  box.value = '';
+  box.style.height = 'auto';
+  runScript({
+    q: text,
+    steps: [],
+    a:
+      'This is a **static design preview**, so I am not connected to a live model here — ' +
+      'the four suggested prompts above replay realistic scripted responses to show how ' +
+      'tool traces, timings, and streaming look.\n\nRun the real app with `npm run dev` to talk ' +
+      'to the actual agent.',
+  });
+}
+
+function resetChat() {
+  if (busy) return;
+  inner().innerHTML = '';
+  location.reload();
+}
+
+const box = document.getElementById('composer');
+box.addEventListener('input', () => {
+  box.style.height = 'auto';
+  box.style.height = Math.min(box.scrollHeight, 190) + 'px';
+});
+box.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendFromComposer();
+  }
+});
+
+/* ---------- finance bars ---------- */
+
+const ROWS = [
+  { c: 'Consultations', i: 8400, e: 0 },
+  { c: 'Supplies', i: 0, e: 5120 },
+  { c: 'Procedures', i: 6240, e: 0 },
+  { c: 'Payroll', i: 0, e: 6800 },
+  { c: 'Equipment', i: 0, e: 1890 },
+  { c: 'Other', i: 4300, e: 848.5 },
+];
+
+function niceMax(v) {
+  const m = 10 ** Math.floor(Math.log10(v));
+  const n = v / m;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * m;
+}
+
+(function drawBars() {
+  const host = document.getElementById('bars');
+  if (!host) return;
+  const max = niceMax(Math.max(...ROWS.flatMap((r) => [r.i, r.e])));
+  const nf = new Intl.NumberFormat();
+
+  const bar = (val, color) => {
+    const pct = (val / max) * 100;
+    const inside = pct > 22;
+    return `<div class="row" style="height:18px;position:relative">
+      <div style="width:${Math.max(pct, val > 0 ? 0.6 : 0)}%;height:100%;background:${color};border-radius:2px 4px 4px 2px;display:flex;align-items:center;justify-content:flex-end;padding-right:${inside ? 7 : 0}px;transition:width .6s var(--ease-out)">
+        ${inside ? `<span class="tiny tabular" style="color:#05060a;font-weight:600">${nf.format(val)}</span>` : ''}
+      </div>
+      ${!inside && val > 0 ? `<span class="tiny tabular muted" style="margin-left:7px">${nf.format(val)}</span>` : ''}
+    </div>`;
+  };
+
+  host.innerHTML = ROWS.map(
+    (r) => `
+    <div class="small truncate" style="padding:9px 0;color:var(--text-secondary);text-align:right;align-self:center">${r.c}</div>
+    <div style="position:relative;padding:9px 0">
+      <div style="position:absolute;inset:4px 0;pointer-events:none">
+        ${[0, 25, 50, 75, 100].map((p) => `<div style="position:absolute;left:${p}%;top:0;bottom:0;width:1px;background:${p === 0 ? 'var(--border-strong)' : 'rgba(255,255,255,.04)'}"></div>`).join('')}
+      </div>
+      <div class="stack" style="gap:2px;position:relative">
+        ${bar(r.i, '#0891B2')}
+        ${bar(r.e, '#8B5CF6')}
+      </div>
+    </div>`,
+  ).join('');
+})();
+
+/* ---------- status modules ---------- */
+
+const MODULES = [
+  ['Telegram Bot', 'Chat interface with whitelist access control', 'disabled'],
+  ['Google Drive', 'Document lookup across your Drive folders', 'disabled'],
+  ['Obsidian', 'Vault sync into the knowledge base', 'disabled'],
+  ['Knowledge Base', 'Semantic search over indexed documents', 'misconfigured'],
+  ['n8n Workflows', 'Inbound triggers and outbound event webhooks', 'disabled'],
+  ['Finance', 'Ledger, P&L, and signed receipt webhooks', 'enabled'],
+  ['Records', 'Patient records and prescription history', 'enabled'],
+  ['Dashboard', 'This web interface and its API', 'enabled'],
+];
+
+const STYLE = {
+  enabled: ['badge-success', 'dot-live', 'Active'],
+  disabled: ['', '', 'Off'],
+  misconfigured: ['badge-warning', 'dot-warning', 'Needs config'],
+};
+
+(function drawModules() {
+  const host = document.getElementById('modules');
+  if (!host) return;
+  host.innerHTML = MODULES.map(([name, blurb, status]) => {
+    const [badge, dot, label] = STYLE[status];
+    const off = status === 'disabled';
+    return `<div class="card card-hover" style="opacity:${off ? 0.62 : 1}">
+      <div class="row gap-3" style="margin-bottom:9px">
+        <span style="color:${off ? 'var(--text-muted)' : 'var(--cyan)'};display:flex">${BOLT}</span>
+        <h3 style="font-size:14px">${name}</h3><div class="grow"></div>
+        <span class="badge ${badge}">${dot ? `<span class="dot ${dot}"></span>` : ''}${label}</span>
+      </div>
+      <p class="small muted" style="line-height:1.55">${blurb}</p>
+    </div>`;
+  }).join('');
+})();
+
+/* ---------- logs ---------- */
+
+const LOGS = [
+  ['20 Aug 2026, 10:14', 'ai-agent:dashboard:u1', 'calculate_finance_summary', true],
+  ['20 Aug 2026, 10:12', 'ai-agent:dashboard:u1', 'get_patient_prescriptions', true],
+  ['20 Aug 2026, 09:58', 'ai-agent:telegram:8891', 'find_latest_drive_file', false],
+  ['20 Aug 2026, 09:41', 'system', 'cleanup.purge_logs', true],
+  ['20 Aug 2026, 09:02', 'ai-agent:n8n:req-2210', 'calculate_finance_summary', true],
+];
+
+(function drawLogs() {
+  const host = document.getElementById('logRows');
+  if (!host) return;
+  host.innerHTML = LOGS.map(
+    ([time, actor, tool, ok]) => `<tr>
+      <td class="mono tiny muted" style="white-space:nowrap">${time}</td>
+      <td class="small"><span class="truncate" style="display:block;max-width:220px">${actor}</span></td>
+      <td class="mono small" style="color:var(--cyan)">${tool}</td>
+      <td><span class="badge ${ok ? 'badge-success' : 'badge-danger'}">${ok ? CHECK : CROSS}${ok ? 'OK' : 'Failed'}</span>
+      ${!ok ? '<div class="tiny muted" style="margin-top:4px">Tool "find_latest_drive_file" is unavailable: the Google Drive module is disabled.</div>' : ''}</td>
+    </tr>`,
+  ).join('');
+})();
+
+</script>
+</body>
+</html>
