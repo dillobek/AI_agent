@@ -9,6 +9,6 @@ RUN pnpm install --frozen-lockfile
 COPY landing-frontend ./landing-frontend
 RUN pnpm --dir landing-frontend build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
 COPY --from=builder /app/landing-frontend/dist /usr/share/nginx/html
 EXPOSE 80
