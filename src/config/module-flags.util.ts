@@ -18,6 +18,8 @@ function parseBool(value: string | undefined, defaultValue: boolean): boolean {
 export function readModuleFlagsFromEnv() {
   return {
     telegram: parseBool(process.env.TELEGRAM_ENABLED, false),
+    personalTelegram: parseBool(process.env.PERSONAL_TELEGRAM_ENABLED, false),
+    instagram: parseBool(process.env.INSTAGRAM_ENABLED, false),
     googleDrive: parseBool(process.env.GOOGLE_DRIVE_ENABLED, false),
     obsidian: parseBool(process.env.OBSIDIAN_ENABLED, false),
     rag: parseBool(process.env.RAG_ENABLED, false),

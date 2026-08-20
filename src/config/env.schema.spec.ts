@@ -84,6 +84,29 @@ describe('validateEnv', () => {
     ).toThrow(/GEMINI_API_KEY/);
   });
 
+  it('requires MTProto credentials and Gemini when personal Telegram is enabled', () => {
+    expect(() =>
+      validateEnv({
+        ...BASE_VALID_ENV,
+        PERSONAL_TELEGRAM_ENABLED: 'true',
+        GEMINI_API_KEY: 'some-key',
+      }),
+    ).toThrow(/TELEGRAM_API_ID/);
+  });
+
+  it('accepts a configured personal Telegram connector', () => {
+    const result = validateEnv({
+      ...BASE_VALID_ENV,
+      PERSONAL_TELEGRAM_ENABLED: 'true',
+      GEMINI_API_KEY: 'some-key',
+      TELEGRAM_API_ID: '123456',
+      TELEGRAM_API_HASH: 'a'.repeat(32),
+      PERSONAL_TELEGRAM_PHONE: '+998901234567',
+      PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY: 'k'.repeat(48),
+    });
+    expect(result.PERSONAL_TELEGRAM_ENABLED).toBe(true);
+  });
+
   it('requires FINANCE_WEBHOOK_SECRET when the finance module is enabled (default on)', () => {
     expect(() => validateEnv({ ...BASE_VALID_ENV, FINANCE_WEBHOOK_SECRET: '' })).toThrow(/FINANCE_WEBHOOK_SECRET/);
   });

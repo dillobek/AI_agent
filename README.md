@@ -9,6 +9,11 @@ Every credential, feature flag, and piece of user-specific data lives in `.env` 
 **zero hardcoded personal data** in the source tree. Clone it, run `pnpm run setup`, fill in
 your own credentials, and it's yours.
 
+The project has two intentionally separate Telegram roles: an **owner-only Control Bot** for
+commands, status and emergency pause, and a **personal-account automation layer** for replying
+in the owner's own private conversations. A normal BotFather bot cannot read a person's private
+account DMs; that layer therefore uses a separately authenticated MTProto user session on the VPS.
+
 ## Table of contents
 
 1. [Overview](#1-overview)
@@ -45,6 +50,7 @@ src/
   common/        Global guards/filters/decorators, redaction, audit log, cleanup jobs
   auth/          JWT auth, RBAC (ADMIN/USER), login lockout, token revocation
   telegram/      Telegram bot (nestjs-telegraf) + whitelist guard
+  autonomy/      Per-contact memory, persona-aware text-only replies, Full Auto pause controls
   drive/         Google Drive search ("latest file for X") with pagination + retry
   obsidian/      Obsidian Local REST API -> knowledge base sync
   rag/           Vector store (ChromaDB) with real embeddings, chunking, dedup
@@ -128,6 +134,7 @@ comments in `.env.example`. Key groups:
 | Core | `NODE_ENV`, `PORT`, `DATABASE_URL` | Always required |
 | Auth | `JWT_SECRET`, `JWT_EXPIRES_IN`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_MINUTES` | `JWT_SECRET` must be ≥32 chars and non-placeholder in production |
 | Module toggles | `TELEGRAM_ENABLED`, `GOOGLE_DRIVE_ENABLED`, `OBSIDIAN_ENABLED`, `RAG_ENABLED`, `N8N_ENABLED`, `FINANCE_MODULE_ENABLED`, `PATIENTS_MODULE_ENABLED`, `DASHBOARD_ENABLED` | Each unlocks conditional required fields below |
+| Personal Telegram | `PERSONAL_TELEGRAM_ENABLED`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `PERSONAL_TELEGRAM_PHONE`, `PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY` | A user-account connector; never reuse the Bot API token or commit a session |
 | AI provider | `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | Required when any AI-dependent module is enabled |
 | Agent bounds | `AGENT_MAX_TOOL_CALLS`, `AGENT_TOOL_TIMEOUT_MS`, `AGENT_MAX_PROMPT_CHARS`, `SESSION_TTL_MINUTES` | Protect against runaway loops and prompt-flooding |
 | Google Drive | `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_DRIVE_ROOT_FOLDER_ID`, `GOOGLE_DRIVE_PAGE_SIZE` | Required only if `GOOGLE_DRIVE_ENABLED=true` |
@@ -148,6 +155,7 @@ the exact rules enforced in production.
 | Module | Flag | Default | What breaks if you skip it |
 |---|---|---|---|
 | Telegram bot | `TELEGRAM_ENABLED` | off | No Telegram interface; dashboard/API still work |
+| Personal Telegram | `PERSONAL_TELEGRAM_ENABLED` | off | No autonomous replies from the owner's personal Telegram account |
 | Google Drive | `GOOGLE_DRIVE_ENABLED` | off | Agent's `find_latest_drive_file` tool is not offered |
 | Obsidian | `OBSIDIAN_ENABLED` | off | `/obsidian/sync` returns 503; no vault-based knowledge base |
 | RAG (vector search) | `RAG_ENABLED` | off | Patient history has no semantic search context |
@@ -168,6 +176,30 @@ AI agent simply never offers that module's tool to Gemini in the first place.
 3. Get your numeric Telegram user ID from **@userinfobot** and add it to
    `TELEGRAM_WHITELIST_IDS` (comma-separated for multiple admins). Any update from an ID not
    in this list is rejected before it reaches the agent.
+
+### 8.2 Personal Telegram auto replies
+
+This is distinct from the Control Bot. It is for answering private messages received by the
+owner's account and must be deployed on the VPS using a dedicated MTProto connector.
+
+1. Keep `TELEGRAM_ENABLED=true` and add only your own ID to `TELEGRAM_WHITELIST_IDS`; use this
+   bot to run `/autostatus`, `/pauseauto` and `/resumeauto`.
+2. Create `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` at `my.telegram.org`, set the owner's phone
+   in `PERSONAL_TELEGRAM_PHONE`, create a 48-byte `PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY`,
+   then set `PERSONAL_TELEGRAM_ENABLED=true`.
+3. Run `pnpm run setup:personal-telegram` directly in a private VPS terminal, then paste its
+   encrypted output into the VPS `.env`. Never send login codes, 2FA passwords or serialized
+   sessions to the Control Bot, GitHub, a dashboard field or chat.
+4. Run `pnpm exec prisma migrate deploy` before starting the service. The automation records
+   separate per-contact history and uses it only for that same contact.
+
+Full Auto is on by default once a connector is live. It has only hard safety stops: credentials,
+OTP requests, banking/payment requests, crypto/keys and binding commitments are not answered or
+executed automatically. Use `/pauseauto` immediately if you want to stop all replies.
+
+Instagram should use Meta's official Professional-account messaging API and feeds the same
+`PersonalAssistantService`; it is not enabled merely by setting `INSTAGRAM_ENABLED=true` until
+Meta OAuth/webhook credentials and the platform connector are provisioned.
 
 ### 8.2 Google Gemini API key
 1. Go to https://aistudio.google.com/app/apikey.

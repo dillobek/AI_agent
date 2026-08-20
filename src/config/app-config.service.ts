@@ -30,6 +30,8 @@ export class AppConfigService {
   get moduleFlags() {
     return {
       telegram: this.get('TELEGRAM_ENABLED'),
+      personalTelegram: this.get('PERSONAL_TELEGRAM_ENABLED'),
+      instagram: this.get('INSTAGRAM_ENABLED'),
       googleDrive: this.get('GOOGLE_DRIVE_ENABLED'),
       obsidian: this.get('OBSIDIAN_ENABLED'),
       rag: this.get('RAG_ENABLED'),

@@ -73,6 +73,8 @@ export const envSchema = z
 
     // ---- Optional module toggles ----
     TELEGRAM_ENABLED: boolEnv(false),
+    PERSONAL_TELEGRAM_ENABLED: boolEnv(false),
+    INSTAGRAM_ENABLED: boolEnv(false),
     GOOGLE_DRIVE_ENABLED: boolEnv(false),
     OBSIDIAN_ENABLED: boolEnv(false),
     RAG_ENABLED: boolEnv(false),
@@ -84,6 +86,14 @@ export const envSchema = z
     // ---- Telegram ----
     TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
     TELEGRAM_WHITELIST_IDS: z.string().optional().default(''),
+    // Telegram personal-account (MTProto) connector. API ID/HASH are
+    // created at my.telegram.org; the session itself is encrypted on VPS.
+    TELEGRAM_API_ID: intEnv(0),
+    TELEGRAM_API_HASH: z.string().optional().default(''),
+    PERSONAL_TELEGRAM_PHONE: z.string().optional().default(''),
+    PERSONAL_TELEGRAM_SESSION: z.string().optional().default(''),
+    PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY: z.string().optional().default(''),
+    PERSONAL_REPLY_MAX_HISTORY: intEnv(24),
 
     // ---- AI provider (Gemini today, adapter-based so others can be added) ----
     AI_PROVIDER: z.enum(['gemini']).default('gemini'),
@@ -197,13 +207,23 @@ export const envSchema = z
     // The dashboard can boot and expose non-AI pages without an AI key. A
     // missing key is only fatal when an integration that invokes AI without
     // an interactive user explicitly requires it.
-    const geminiNeeded = cfg.TELEGRAM_ENABLED || cfg.N8N_ENABLED || cfg.RAG_ENABLED;
+    const geminiNeeded = cfg.TELEGRAM_ENABLED || cfg.PERSONAL_TELEGRAM_ENABLED || cfg.INSTAGRAM_ENABLED || cfg.N8N_ENABLED || cfg.RAG_ENABLED;
     if (geminiNeeded && cfg.AI_PROVIDER === 'gemini' && !cfg.GEMINI_API_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['GEMINI_API_KEY'],
         message: 'GEMINI_API_KEY is required when Telegram, n8n, or RAG is enabled with AI_PROVIDER=gemini',
       });
+    }
+
+    if (cfg.PERSONAL_TELEGRAM_ENABLED) {
+      if (cfg.TELEGRAM_API_ID <= 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['TELEGRAM_API_ID'], message: 'TELEGRAM_API_ID is required when PERSONAL_TELEGRAM_ENABLED=true' });
+      }
+      requirePresent('TELEGRAM_API_HASH', 'TELEGRAM_API_HASH (required when PERSONAL_TELEGRAM_ENABLED=true)');
+      requirePresent('PERSONAL_TELEGRAM_PHONE', 'PERSONAL_TELEGRAM_PHONE (required when PERSONAL_TELEGRAM_ENABLED=true)');
+      requirePresent('PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY', 'PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY (required when PERSONAL_TELEGRAM_ENABLED=true)');
+      rejectPlaceholderInProd('PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY', 'PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY');
     }
 
     if (cfg.GOOGLE_DRIVE_ENABLED) {

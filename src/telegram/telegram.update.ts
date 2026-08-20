@@ -6,6 +6,7 @@ import { AgentService } from '../ai/agent.service';
 import { AppConfigService } from '../config/app-config.service';
 import { randomizedDelay } from '../common/utils/delay.util';
 import { ExecutionLogService } from '../common/execution-log.service';
+import { PersonalAssistantService } from '../autonomy/personal-assistant.service';
 
 /**
  * Telegram Bot Interface (Module - Overview #1).
@@ -24,6 +25,7 @@ export class TelegramUpdate {
     private readonly agentService: AgentService,
     private readonly executionLog: ExecutionLogService,
     private readonly config: AppConfigService,
+    private readonly personalAssistant: PersonalAssistantService,
   ) {}
 
   @Start()
@@ -35,6 +37,8 @@ export class TelegramUpdate {
         '/find <person name> - Find the latest Drive document for a patient\n' +
         '/prescriptions <person name> - Get prescription history\n' +
         '/finance <start> <end> - Finance P&L summary\n' +
+        '/autostatus - Personal message automation status\n' +
+        '/pauseauto or /resumeauto - Pause/resume personal auto replies\n' +
         '/reset - Clear this conversation\'s memory\n\n' +
         'You can also just message me naturally and I will route it to the AI agent.',
     );
@@ -44,6 +48,29 @@ export class TelegramUpdate {
   async onReset(@Ctx() ctx: Context) {
     await this.agentService.resetSession(this.channelKey(ctx));
     await ctx.reply('Conversation memory cleared.');
+  }
+
+  @Command('autostatus')
+  async onAutoStatus(@Ctx() ctx: Context) {
+    const status = await this.personalAssistant.status();
+    await ctx.reply(
+      `Personal automation: ${status.paused ? 'PAUSED' : 'ACTIVE'}\n` +
+      `Full auto replies: ${status.fullAutoReplies ? 'ON' : 'OFF'}\n` +
+      `Telegram connector configured: ${status.personalTelegramConfigured ? 'YES' : 'NO'}\n` +
+      `Managed conversations: ${status.activeConversationCount}/${status.conversationCount}`,
+    );
+  }
+
+  @Command('pauseauto')
+  async onPauseAuto(@Ctx() ctx: Context) {
+    await this.personalAssistant.setPaused(true);
+    await ctx.reply('Personal auto replies paused. Existing messages will not receive automatic replies.');
+  }
+
+  @Command('resumeauto')
+  async onResumeAuto(@Ctx() ctx: Context) {
+    await this.personalAssistant.setPaused(false);
+    await ctx.reply('Personal auto replies resumed.');
   }
 
   @Command('find')

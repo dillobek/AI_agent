@@ -17,6 +17,7 @@ import { FinanceModule } from './finance/finance.module';
 import { PatientsModule } from './patients/patients.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { N8nModule } from './n8n/n8n.module';
+import { AutonomyModule } from './autonomy/autonomy.module';
 import { readModuleFlagsFromEnv } from './config/module-flags.util';
 
 // Read once, at module-graph construction time (see module-flags.util.ts for why).
@@ -53,6 +54,7 @@ const flags = readModuleFlagsFromEnv();
     AiModule,
     DashboardModule,
     N8nModule,
+    AutonomyModule,
     // Telegram is a true leaf module (nothing else depends on it) and
     // starting Telegraf with no/invalid token would throw, so it is only
     // added to the graph at all when explicitly enabled.

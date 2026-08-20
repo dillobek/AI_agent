@@ -63,6 +63,31 @@ export class AgentService {
     await this.memory.clear(channelKey);
   }
 
+  /**
+   * Generates prose only. Personal-message automation uses this path rather
+   * than the tool loop: a DM must never turn into a finance, Drive, server or
+   * other side-effecting tool call merely because someone wrote a message.
+   */
+  async generateTextOnly(systemInstruction: string, prompt: string): Promise<string> {
+    const maxPromptChars = this.config.get('AGENT_MAX_PROMPT_CHARS');
+    if (prompt.length > maxPromptChars) {
+      throw new Error(`Personal message exceeds ${maxPromptChars} characters`);
+    }
+
+    const result = await this.withTimeout(
+      this.aiProvider.generate({
+        systemInstruction,
+        history: [{ role: 'user', text: prompt }],
+        tools: [],
+        timeoutMs: this.config.get('AGENT_TOOL_TIMEOUT_MS'),
+      }),
+      this.config.get('AGENT_TOOL_TIMEOUT_MS'),
+    );
+
+    if (!result.text) throw new Error('AI provider returned no text-only reply');
+    return result.text.trim();
+  }
+
   private async runLoop(prompt: string, channelKey: string, maxSteps: number, perCallTimeoutMs: number): Promise<string> {
     const history = await this.memory.load(channelKey);
     const turns: ConversationTurn[] = [...history, { role: 'user', text: prompt }];

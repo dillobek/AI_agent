@@ -4,6 +4,7 @@ import { TelegrafModule } from 'nestjs-telegraf';
 import { TelegramUpdate } from './telegram.update';
 import { TelegramWhitelistGuard } from './telegram-whitelist.guard';
 import { AiModule } from '../ai/ai.module';
+import { AutonomyModule } from '../autonomy/autonomy.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { AiModule } from '../ai/ai.module';
       }),
     }),
     AiModule,
+    AutonomyModule,
   ],
   providers: [TelegramUpdate, TelegramWhitelistGuard],
 })
