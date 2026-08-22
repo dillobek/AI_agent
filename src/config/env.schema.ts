@@ -157,13 +157,26 @@ export const envSchema = z
     N8N_OUTBOUND_WEBHOOK_URL: z.string().optional().default(''),
     N8N_INBOUND_SECRET: z.string().optional().default(''),
 
-    // ---- Voice assistant (Gemini Live) ----
-    // "preview" model IDs from Google change over time; check
-    // https://ai.google.dev/gemini-api/docs/live-api for the current one if
-    // this default stops working.
+    // ---- Voice assistant (OpenAI Realtime, over WebRTC) ----
+    // Realtime model IDs are versioned ("gpt-realtime-2.1"); the unsuffixed
+    // alias tracks the current one. Pin an explicit version here if a model
+    // update ever changes behavior mid-deployment.
+    OPENAI_REALTIME_MODEL: z.string().default('gpt-realtime'),
+    // Output voice. It cannot be changed once the model has spoken in a
+    // session, so this is a per-deployment setting, not a per-turn one.
+    OPENAI_REALTIME_VOICE: z.string().default('marin'),
+    // Transcriber for the user's own audio. Without it the session still
+    // works, but only the assistant's half of the conversation ever
+    // reaches the transcript UI.
+    OPENAI_TRANSCRIPTION_MODEL: z.string().default('whisper-1'),
+    // ISO-639-1 hint for that transcriber ("uz"). Leave empty to let
+    // OpenAI auto-detect the spoken language instead.
+    VOICE_LANGUAGE: z.string().default('uz'),
+
+    // ---- Voice assistant (legacy Gemini Live path) ----
+    // Kept so an existing .env still carrying these doesn't fail
+    // validation. Nothing reads them while AI_PROVIDER=openai.
     GEMINI_LIVE_MODEL: z.string().default('gemini-3.1-flash-live-preview'),
-    // How long a minted ephemeral Live token stays valid before the
-    // frontend must request a new one.
     VOICE_LIVE_TOKEN_TTL_SECONDS: intEnv(1800),
 
     // ---- YouTube search (for the voice/agent "play a video" tool) ----

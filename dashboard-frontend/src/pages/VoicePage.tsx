@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<VoiceStatus, string> = {
 /** Entering the route requests microphone access and starts the Live session.
  * Browsers still require a user to grant microphone permission at least once. */
 export default function VoicePage() {
-  const { status, error, transcript, start, stop } = useVoiceSession();
+  const { status, error, micDenied, transcript, start, stop } = useVoiceSession();
   const startRef = useRef(start);
   const transcriptRef = useRef<HTMLDivElement>(null);
   startRef.current = start;
@@ -31,7 +31,10 @@ export default function VoicePage() {
   }, [transcript]);
 
   const active = status === 'connecting' || status === 'listening' || status === 'speaking';
-  const microphoneDenied = error === 'Microphone access was not granted.';
+  // Comes from the hook as a flag rather than by matching the error text —
+  // the message is localized, so a string comparison silently stopped
+  // matching and the "grant microphone access" help never appeared.
+  const microphoneDenied = micDenied;
 
   return (
     <div className="voice-console">

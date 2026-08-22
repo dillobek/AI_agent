@@ -1,51 +1,55 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
 import { AgentToolsService } from '../ai/tools/agent-tools.service';
 import { ToolExecutionService } from '../ai/tools/tool-execution.service';
-import { AGENT_SYSTEM_PROMPT } from '../ai/system-prompt';
+import { VOICE_SYSTEM_PROMPT } from '../ai/system-prompt';
 import { ModuleDisabledException } from '../common/exceptions/module-disabled.exception';
+import { buildRealtimeSession, OpenAiRealtimeTool, toOpenAiRealtimeTool } from './openai-realtime.util';
 
-export interface LiveTokenResult {
-  /** Opaque ephemeral credential — the frontend passes this as `apiKey` when opening its own direct-to-Gemini Live WebSocket (see @google/genai's `ai.live.connect`). Never a reusable API key. */
-  token: string;
-  /** ISO timestamp — the token (and the messages it can send) stop working after this. */
-  expireTime: string;
+const OPENAI_REALTIME_CALLS_URL = 'https://api.openai.com/v1/realtime/calls';
+/** The SDP exchange is a single fast round trip; slower than this is a stuck connection, not a slow one. */
+const SDP_EXCHANGE_TIMEOUT_MS = 20_000;
+/** How much of OpenAI's error body to keep in the log — enough to read the validation message, bounded so a huge body can't flood it. */
+const MAX_LOGGED_ERROR_CHARS = 1500;
+
+/** Diagnostic view of the session the browser is about to open — see `GET /voice/session`. */
+export interface RealtimeSessionDescriptor {
   model: string;
-  /** Safety and behavior instructions applied to the browser-side Live session. */
-  systemInstruction: string;
-  /** The same tool set the text agent exposes, translated into Gemini's function-declaration shape, so the frontend doesn't need its own copy of the tool registry. */
-  tools: unknown[];
+  voice: string;
+  language: string;
+  instructions: string;
+  tools: OpenAiRealtimeTool[];
 }
 
 /**
- * Backs the two voice endpoints (see `VoiceController`):
+ * Backs the voice endpoints (see `VoiceController`).
  *
- * - Minting short-lived Gemini Live ephemeral tokens, so the frontend can
- *   open its own direct browser-to-Gemini WebSocket without ever holding
- *   the real `GEMINI_API_KEY` — a leaked ephemeral token has a small blast
- *   radius (single-session, model-and-modality-locked, expires quickly),
- *   unlike a bare API key.
- * - Relaying Gemini Live's function-call events into
- *   `AgentToolsService.execute()` (via the shared `ToolExecutionService`,
- *   so voice tool calls get the same execution-log audit trail text-agent
- *   calls get), with per-call-id dedupe — Live can retry/duplicate a
- *   function call across a WebSocket reconnect, and some tools have side
- *   effects (creating a `PlanItem`, etc).
+ * The browser holds a WebRTC peer connection straight to OpenAI Realtime,
+ * so audio never transits this server — but the credential never reaches
+ * the browser either. The offer/answer SDP handshake is proxied through
+ * here (`createRealtimeCall`), which is the one moment `OPENAI_API_KEY` is
+ * used, and it is also where the session's instructions and tool registry
+ * get attached. A session created without that tool list can hold a
+ * conversation but cannot reach any of this app's data.
  *
- * Deliberately does NOT hold a persistent `GoogleGenAI` client the way
- * `GeminiProviderAdapter` does: token minting is infrequent (once per
- * voice session, not once per message), so a fresh client per call is
- * simpler and sidesteps a stale-key edge case if `GEMINI_API_KEY` were
- * ever rotated without a process restart.
+ * Tool calls the model then decides to make come back from the browser to
+ * `executeToolWithDedup` over the authenticated dashboard JWT, so the
+ * browser never holds Drive/Calendar/Finance/DB credentials itself.
  */
 @Injectable()
 export class VoiceService {
   private readonly logger = new Logger(VoiceService.name);
 
-  // In-memory dedupe cache for Gemini Live function-call ids. A single
-  // process is enough here — this is not meant to survive a restart, only
-  // to absorb the handful of seconds a WS reconnect might retry a call
-  // over, and this app is deployed as a single instance (see README).
+  // In-memory dedupe cache for Realtime function-call ids. A single process
+  // is enough here — this is not meant to survive a restart, only to absorb
+  // the handful of seconds a reconnect might retry a call over, and this
+  // app is deployed as a single instance (see README).
   private readonly dedupeCache = new Map<string, { promise: Promise<string>; expiresAt: number }>();
   private readonly DEDUPE_TTL_MS = 5 * 60 * 1000;
 
@@ -55,59 +59,138 @@ export class VoiceService {
     private readonly toolExecution: ToolExecutionService,
   ) {}
 
-  async mintLiveToken(): Promise<LiveTokenResult> {
-    if (!this.config.moduleFlags.voice) {
-      throw new ModuleDisabledException('voice');
-    }
-    const apiKey = this.config.get('OPENAI_API_KEY');
-    if (!apiKey) {
-      throw new InternalServerErrorException('OPENAI_API_KEY is not configured.');
-    }
-
-    const model = 'gpt-realtime';
-    const ttlSeconds = this.config.get('VOICE_LIVE_TOKEN_TTL_SECONDS');
-    const expireTime = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  /**
+   * What the browser's session will be configured with, without opening
+   * one. Exposed for diagnostics: "is voice on, which model, and does it
+   * actually have any tools?" is the first question to ask when the
+   * assistant answers but can't do anything.
+   */
+  describeSession(): RealtimeSessionDescriptor {
+    this.assertVoiceEnabled();
 
     return {
-      token: '',
-      expireTime,
-      model,
-      systemInstruction: AGENT_SYSTEM_PROMPT,
-      tools: this.tools.getAvailableDeclarations() as never,
+      model: this.config.get('OPENAI_REALTIME_MODEL'),
+      voice: this.config.get('OPENAI_REALTIME_VOICE'),
+      language: this.config.get('VOICE_LANGUAGE'),
+      instructions: VOICE_SYSTEM_PROMPT,
+      tools: this.tools.getAvailableDeclarations().map(toOpenAiRealtimeTool),
     };
   }
 
-  /** Creates an OpenAI Realtime WebRTC call without exposing the permanent API key. */
+  /**
+   * Exchanges the browser's WebRTC offer for OpenAI's SDP answer, attaching
+   * the session configuration (instructions, voice, transcription, tools).
+   *
+   * Failures map to distinct statuses on purpose. The previous version
+   * collapsed all of them into a bare 500, which is what made this
+   * undiagnosable from the browser: a missing key, a rejected session
+   * field, and an unreachable OpenAI all looked identical. OpenAI's own
+   * validation message is passed through because it names the offending
+   * field ("Unknown parameter: session.audio.…"), and the caller here is an
+   * authenticated admin of this deployment, not the public.
+   */
   async createRealtimeCall(offerSdp: string): Promise<string> {
-    if (!this.config.moduleFlags.voice) throw new ModuleDisabledException('voice');
-    const apiKey = this.config.get('OPENAI_API_KEY');
-    if (!apiKey) throw new InternalServerErrorException('OPENAI_API_KEY is not configured.');
-    const body = new FormData();
-    body.set('sdp', new Blob([offerSdp], { type: 'application/sdp' }), 'offer.sdp');
-    body.set('session', JSON.stringify({ type: 'realtime', model: 'gpt-realtime', instructions: AGENT_SYSTEM_PROMPT, output_modalities: ['audio'] }));
-    const response = await fetch('https://api.openai.com/v1/realtime/calls', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body });
-    if (!response.ok) throw new InternalServerErrorException(`OpenAI Realtime call failed (${response.status}).`);
-    return response.text();
+    this.assertVoiceEnabled();
+    const apiKey = this.requireApiKey();
+
+    const session = buildRealtimeSession({
+      model: this.config.get('OPENAI_REALTIME_MODEL'),
+      instructions: VOICE_SYSTEM_PROMPT,
+      voice: this.config.get('OPENAI_REALTIME_VOICE'),
+      transcriptionModel: this.config.get('OPENAI_TRANSCRIPTION_MODEL'),
+      language: this.config.get('VOICE_LANGUAGE'),
+      tools: this.tools.getAvailableDeclarations(),
+    });
+
+    const form = new FormData();
+    form.set('sdp', offerSdp);
+    form.set('session', JSON.stringify(session));
+
+    let response: Response;
+    try {
+      response = await fetch(OPENAI_REALTIME_CALLS_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+        signal: AbortSignal.timeout(SDP_EXCHANGE_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Network-level failure: DNS, TLS, egress firewall, or our own
+      // timeout. Distinct from "OpenAI answered, and said no".
+      this.logger.error(`Could not reach OpenAI Realtime: ${(err as Error).message}`);
+      throw new ServiceUnavailableException(
+        "Could not reach OpenAI Realtime. Check the server's outbound network access and try again.",
+      );
+    }
+
+    const body = await response.text();
+
+    if (!response.ok) {
+      this.logger.error(
+        `OpenAI Realtime rejected the session (HTTP ${response.status}): ${body.slice(0, MAX_LOGGED_ERROR_CHARS)}`,
+      );
+      throw new BadGatewayException(
+        `OpenAI Realtime rejected the session (HTTP ${response.status}): ${this.extractErrorMessage(body)}`,
+      );
+    }
+
+    // A 200 with a non-SDP body is a real, observed failure mode. Catching
+    // it here turns "the call connects and then nothing ever happens" into
+    // a clear error at the moment it goes wrong.
+    if (!body.trimStart().startsWith('v=')) {
+      this.logger.error(`OpenAI Realtime returned a non-SDP body: ${body.slice(0, MAX_LOGGED_ERROR_CHARS)}`);
+      throw new BadGatewayException('OpenAI Realtime returned an unexpected response instead of an SDP answer.');
+    }
+
+    this.logger.log(`Realtime session opened with ${(session.tools as unknown[]).length} tool(s) attached`);
+    return body;
   }
 
   /**
-   * Executes a tool on behalf of a Live session, deduped by Live's own
-   * per-call id: a repeat call with the same id (e.g. Live retried it
-   * across a reconnect) returns the same in-flight/completed result
-   * instead of re-running a possibly side-effecting tool a second time.
+   * Executes a tool on behalf of a Realtime session, deduped by the API's
+   * own per-call id: a repeat call with the same id (e.g. retried across a
+   * reconnect) returns the same in-flight/completed result instead of
+   * re-running a possibly side-effecting tool a second time.
    */
   async executeToolWithDedup(toolName: string, args: unknown, channelKey: string, callId: string): Promise<string> {
     this.sweepDedupeCache();
 
     const cached = this.dedupeCache.get(callId);
     if (cached) {
-      this.logger.debug(`Deduping repeated Live function-call id "${callId}" for tool "${toolName}"`);
+      this.logger.debug(`Deduping repeated Realtime function-call id "${callId}" for tool "${toolName}"`);
       return cached.promise;
     }
 
     const promise = this.toolExecution.executeToolSafely(toolName, args, channelKey, 'voice');
     this.dedupeCache.set(callId, { promise, expiresAt: Date.now() + this.DEDUPE_TTL_MS });
     return promise;
+  }
+
+  private assertVoiceEnabled(): void {
+    if (!this.config.moduleFlags.voice) {
+      throw new ModuleDisabledException('voice');
+    }
+  }
+
+  private requireApiKey(): string {
+    const apiKey = this.config.get('OPENAI_API_KEY');
+    if (!apiKey) {
+      throw new InternalServerErrorException(
+        'OPENAI_API_KEY is not set on the server, so no voice session can be opened.',
+      );
+    }
+    return apiKey;
+  }
+
+  /** Pulls `error.message` out of OpenAI's JSON error envelope, falling back to the raw body. */
+  private extractErrorMessage(body: string): string {
+    try {
+      const parsed = JSON.parse(body) as { error?: { message?: string } };
+      if (parsed.error?.message) return parsed.error.message;
+    } catch {
+      // Not JSON — fall through to the raw text.
+    }
+    return body.slice(0, 300) || 'no response body';
   }
 
   private sweepDedupeCache() {
