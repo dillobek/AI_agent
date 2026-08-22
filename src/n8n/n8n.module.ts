@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { N8nService } from './n8n.service';
 import { N8nController } from './n8n.controller';
 import { N8nInboundGuard } from './n8n-inbound.guard';
@@ -8,7 +8,7 @@ import { PatientsModule } from '../patients/patients.module';
 import { PlanModule } from '../plan/plan.module';
 
 @Module({
-  imports: [AiModule, FinanceModule, PatientsModule, PlanModule],
+  imports: [forwardRef(() => AiModule), FinanceModule, PatientsModule, PlanModule],
   controllers: [N8nController],
   providers: [N8nService, N8nInboundGuard],
   exports: [N8nService],
