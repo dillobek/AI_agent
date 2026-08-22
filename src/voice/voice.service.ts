@@ -1,9 +1,10 @@
 import {
   BadGatewayException,
+  HttpException,
+  HttpStatus,
   Injectable,
   InternalServerErrorException,
   Logger,
-  PaymentRequiredException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
@@ -132,8 +133,9 @@ export class VoiceService {
       );
       const message = this.extractErrorMessage(body);
       if (response.status === 429 && this.isInsufficientQuota(body)) {
-        throw new PaymentRequiredException(
+        throw new HttpException(
           "OpenAI balans tugagan. Jarvisdan foydalanish uchun Billing bo'limida API kreditini to'ldiring.",
+          HttpStatus.PAYMENT_REQUIRED,
         );
       }
       throw new BadGatewayException(`OpenAI Realtime rejected the session (HTTP ${response.status}): ${message}`);
