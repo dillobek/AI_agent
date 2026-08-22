@@ -67,6 +67,14 @@ export class VoiceController {
     return result;
   }
 
+  /** Exchanges a browser WebRTC offer for OpenAI Realtime's SDP answer. */
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('realtime-call')
+  async createRealtimeCall(@Body('offerSdp') offerSdp: string) {
+    if (!offerSdp) throw new Error('offerSdp is required');
+    return { answerSdp: await this.voiceService.createRealtimeCall(offerSdp) };
+  }
+
   /**
    * Relays one Gemini-Live-initiated function call into
    * `AgentToolsService.execute()` (via `ToolExecutionService`, for the

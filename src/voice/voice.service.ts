@@ -1,9 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { GoogleGenAI, Modality } from '@google/genai';
 import { AppConfigService } from '../config/app-config.service';
 import { AgentToolsService } from '../ai/tools/agent-tools.service';
 import { ToolExecutionService } from '../ai/tools/tool-execution.service';
-import { toGeminiFunctionDeclaration } from '../ai/adapters/gemini-tool-mapper.util';
 import { AGENT_SYSTEM_PROMPT } from '../ai/system-prompt';
 import { ModuleDisabledException } from '../common/exceptions/module-disabled.exception';
 
@@ -16,7 +14,7 @@ export interface LiveTokenResult {
   /** Safety and behavior instructions applied to the browser-side Live session. */
   systemInstruction: string;
   /** The same tool set the text agent exposes, translated into Gemini's function-declaration shape, so the frontend doesn't need its own copy of the tool registry. */
-  tools: ReturnType<typeof toGeminiFunctionDeclaration>[];
+  tools: unknown[];
 }
 
 /**
@@ -61,43 +59,35 @@ export class VoiceService {
     if (!this.config.moduleFlags.voice) {
       throw new ModuleDisabledException('voice');
     }
-    const apiKey = this.config.get('GEMINI_API_KEY');
+    const apiKey = this.config.get('OPENAI_API_KEY');
     if (!apiKey) {
-      throw new InternalServerErrorException('GEMINI_API_KEY is not configured.');
+      throw new InternalServerErrorException('OPENAI_API_KEY is not configured.');
     }
 
-    const model = this.config.get('GEMINI_LIVE_MODEL');
+    const model = 'gpt-realtime';
     const ttlSeconds = this.config.get('VOICE_LIVE_TOKEN_TTL_SECONDS');
     const expireTime = new Date(Date.now() + ttlSeconds * 1000).toISOString();
 
-    const client = new GoogleGenAI({ apiKey });
-    const authToken = await client.authTokens.create({
-      config: {
-        uses: 1,
-        expireTime,
-        // Locks the token to this exact model + audio-out session shape —
-        // a leaked token can't be repurposed for a different model or a
-        // text-only session against our quota.
-        liveConnectConstraints: {
-          model,
-          config: { responseModalities: [Modality.AUDIO] },
-        },
-      },
-    });
-
-    if (!authToken.name) {
-      // Should not happen per the API contract, but never hand back an
-      // empty/undefined credential silently.
-      throw new InternalServerErrorException('Gemini Live token creation returned no token.');
-    }
-
     return {
-      token: authToken.name,
+      token: '',
       expireTime,
       model,
       systemInstruction: AGENT_SYSTEM_PROMPT,
-      tools: this.tools.getAvailableDeclarations().map(toGeminiFunctionDeclaration),
+      tools: this.tools.getAvailableDeclarations() as never,
     };
+  }
+
+  /** Creates an OpenAI Realtime WebRTC call without exposing the permanent API key. */
+  async createRealtimeCall(offerSdp: string): Promise<string> {
+    if (!this.config.moduleFlags.voice) throw new ModuleDisabledException('voice');
+    const apiKey = this.config.get('OPENAI_API_KEY');
+    if (!apiKey) throw new InternalServerErrorException('OPENAI_API_KEY is not configured.');
+    const body = new FormData();
+    body.set('sdp', new Blob([offerSdp], { type: 'application/sdp' }), 'offer.sdp');
+    body.set('session', JSON.stringify({ type: 'realtime', model: 'gpt-realtime', instructions: AGENT_SYSTEM_PROMPT, output_modalities: ['audio'] }));
+    const response = await fetch('https://api.openai.com/v1/realtime/calls', { method: 'POST', headers: { Authorization: `Bearer ${apiKey}` }, body });
+    if (!response.ok) throw new InternalServerErrorException(`OpenAI Realtime call failed (${response.status}).`);
+    return response.text();
   }
 
   /**
