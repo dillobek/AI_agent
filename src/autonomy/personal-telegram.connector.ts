@@ -92,7 +92,7 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
     await this.client.sendFile(channelId, { file: imageUrl, caption });
   }
 
-  async prepareOutgoingMessage(contactName: string, text: string): Promise<string> {
+  async sendOutgoingMessage(contactName: string, text: string): Promise<string> {
     if (!this.client) return 'Shaxsiy Telegram ulanishi hali sozlanmagan yoki ulanmagan.';
     const normalizedName = this.normalize(contactName);
     const normalizedText = text.trim();
@@ -111,9 +111,19 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
     if (candidates.length === 0) return `"${contactName}" nomli kontakt topilmadi. Telegramdagi to'liq ism yoki username'ni ayting.`;
     if (candidates.length > 1) return `Bir nechta mos kontakt topildi: ${candidates.slice(0, 5).map((item) => item.displayName).join(', ')}. To'liq ism yoki username'ni aniqlashtiring.`;
 
+    const candidate = candidates[0];
+    if (!this.config.get('PERSONAL_TELEGRAM_REQUIRE_CONFIRMATION')) {
+      await this.client.sendMessage(candidate.entity as any, { message: normalizedText });
+      await this.n8n.notifyEvent('personal.telegram.message_sent', {
+        displayName: candidate.displayName,
+        text: normalizedText,
+        confirmationRequired: false,
+      });
+      return `${candidate.displayName}ga xabar yuborildi.`;
+    }
+
     this.sweepPendingMessages();
     const confirmationId = randomUUID().slice(0, 8).toUpperCase();
-    const candidate = candidates[0];
     this.pendingMessages.set(confirmationId, { entity: candidate.entity, displayName: candidate.displayName, text: normalizedText, expiresAt: Date.now() + this.PENDING_MESSAGE_TTL_MS });
     return `Xabar tayyor: ${candidate.displayName}ga “${normalizedText}”. Yuborish uchun Control Botga /confirm ${confirmationId} deb yozing. Kod 10 daqiqa amal qiladi.`;
   }

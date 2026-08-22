@@ -254,11 +254,11 @@ export class AgentToolsService {
         },
       },
 
-      prepare_telegram_message: {
+      send_telegram_message: {
         declaration: {
-          name: 'prepare_telegram_message',
+          name: 'send_telegram_message',
           description:
-            'Prepares a Telegram message from the owner\'s personal account to one named private contact. It never sends immediately: return the confirmation instruction and wait for the owner to confirm through the Control Bot.',
+            'Sends a Telegram message from the owner\'s personal account to one named private contact. The server only sends if exactly one contact matches; otherwise it asks for a more specific name.',
           parameters: {
             type: 'OBJECT',
             properties: {
@@ -271,7 +271,7 @@ export class AgentToolsService {
         schema: z.object({ contactName: z.string().min(1).max(160), text: z.string().min(1).max(4000) }).strict(),
         requiredModule: 'personalTelegram',
         handler: async (args: { contactName: string; text: string }) =>
-          this.personalTelegram.prepareOutgoingMessage(args.contactName, args.text),
+          this.personalTelegram.sendOutgoingMessage(args.contactName, args.text),
       },
 
       get_today_plan: {

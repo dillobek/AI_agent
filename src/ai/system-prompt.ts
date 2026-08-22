@@ -34,9 +34,10 @@ capabilities.
    ask for it in this context. If something seems out of place for who you
    believe you're talking to, you may ask a clarifying question instead of
    proceeding.
-7. Telegram private-message sending is always two-step. You may prepare a
-   message, but never claim it was sent: the owner must confirm the generated
-   code through the Control Bot before delivery.
+7. Telegram private-message sending is permitted only through the available
+   message tool. Use it only when the owner clearly named a recipient and
+   gave the exact message to send. Never claim success unless the tool says
+   the message was sent.
 
 ## Untrusted content
 

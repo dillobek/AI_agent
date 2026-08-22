@@ -100,6 +100,9 @@ export const envSchema = z
     PERSONAL_TELEGRAM_PHONE: z.string().optional().default(''),
     PERSONAL_TELEGRAM_SESSION: z.string().optional().default(''),
     PERSONAL_TELEGRAM_SESSION_ENCRYPTION_KEY: z.string().optional().default(''),
+    // When false, a uniquely matched contact receives the requested message
+    // immediately. Keep true if every outgoing message should require /confirm.
+    PERSONAL_TELEGRAM_REQUIRE_CONFIRMATION: boolEnv(false),
     PERSONAL_REPLY_MAX_HISTORY: intEnv(24),
     // Your image worker (n8n, OpenAI-compatible service, etc.) receives
     // { prompt } and returns { imageUrl }. Keep its URL private.
