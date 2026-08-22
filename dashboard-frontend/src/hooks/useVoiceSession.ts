@@ -82,6 +82,18 @@ function describeError(err: unknown): { message: string; moduleDisabled: boolean
   if (err instanceof DOMException && err.name === 'NotAllowedError') {
     return { message: 'Microphone access was not granted.', moduleDisabled: false };
   }
+  if (err instanceof DOMException && err.name === 'NotFoundError') {
+    return { message: 'No microphone was found. Connect or select a microphone, then try again.', moduleDisabled: false };
+  }
+  if (err instanceof DOMException && err.name === 'NotReadableError') {
+    return { message: 'The microphone is busy or unavailable. Close apps such as Telegram, Zoom, or a browser tab that may be using it, then try again.', moduleDisabled: false };
+  }
+  if (err instanceof DOMException && err.name === 'SecurityError') {
+    return { message: 'Microphone access requires a secure HTTPS connection.', moduleDisabled: false };
+  }
+  if (err instanceof DOMException && err.name === 'OverconstrainedError') {
+    return { message: 'This microphone does not support the requested audio settings. Try again to use the browser defaults.', moduleDisabled: false };
+  }
   return { message: 'Could not start the voice session. Check your connection and try again.', moduleDisabled: false };
 }
 
@@ -369,9 +381,10 @@ export function useVoiceSession() {
     setStatus('connecting');
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
+      // Request the browser's default microphone configuration. Constraining a
+      // device to a single channel can reject otherwise working Windows/USB
+      // microphones before the Live API request even begins.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (stoppedRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
