@@ -128,7 +128,7 @@ model WebhookEvent {
 /// LOG_RETENTION_DAYS cleanup.
 model ExecutionLog {
   id        String   @id @default(uuid())
-  actor     String // "telegram:<id>" | "dashboard:<userId>" | "n8n-inbound" | "n8n-outbound" | "ai-agent"
+  actor     String // "telegram:<id>" | "dashboard:<userId>" | "n8n-inbound" | "n8n-outbound" | "ai-agent:<channelKey>" | "voice-agent:<channelKey>"
   toolName  String?
   input     Json?
   output    Json?
@@ -285,4 +285,30 @@ enum ChannelPostStatus {
   DRAFT
   PUBLISHED
   FAILED
+}
+
+/// A single item on the owner's daily plan, surfaced by the voice/text
+/// agent's "today's plan" tool. `source` records where the item came from
+/// (manual dashboard entry, a synced Google Calendar event, or created via
+/// a voice command) and `externalEventId` links it back to the Calendar
+/// event when `source = "calendar"`, so a two-way sync never duplicates
+/// the same event as a second PlanItem.
+model PlanItem {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  scheduledFor    DateTime
+  status          PlanItemStatus @default(PENDING)
+  source          String         @default("manual") // "manual" | "calendar" | "voice"
+  externalEventId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([scheduledFor, status])
+}
+
+enum PlanItemStatus {
+  PENDING
+  DONE
+  CANCELLED
 }

@@ -116,4 +116,29 @@ describe('validateEnv', () => {
       validateEnv({ ...BASE_VALID_ENV, FINANCE_MODULE_ENABLED: 'false', FINANCE_WEBHOOK_SECRET: '' }),
     ).not.toThrow();
   });
+
+  it('requires GEMINI_API_KEY when VOICE_ENABLED=true', () => {
+    expect(() => validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true' })).toThrow(/GEMINI_API_KEY/);
+  });
+
+  it('accepts VOICE_ENABLED=true with a Gemini key configured', () => {
+    const result = validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true', GEMINI_API_KEY: 'some-key' });
+    expect(result.VOICE_ENABLED).toBe(true);
+    expect(result.GEMINI_LIVE_MODEL).toBe('gemini-3.1-flash-live-preview');
+  });
+
+  it('requires YOUTUBE_API_KEY when YOUTUBE_ENABLED=true', () => {
+    expect(() => validateEnv({ ...BASE_VALID_ENV, YOUTUBE_ENABLED: 'true' })).toThrow(/YOUTUBE_API_KEY/);
+  });
+
+  it('requires GOOGLE_APPLICATION_CREDENTIALS and GOOGLE_CALENDAR_ID when CALENDAR_ENABLED=true', () => {
+    expect(() => validateEnv({ ...BASE_VALID_ENV, CALENDAR_ENABLED: 'true' })).toThrow(/GOOGLE_APPLICATION_CREDENTIALS/);
+    expect(() =>
+      validateEnv({ ...BASE_VALID_ENV, CALENDAR_ENABLED: 'true', GOOGLE_APPLICATION_CREDENTIALS: './creds.json' }),
+    ).toThrow(/GOOGLE_CALENDAR_ID/);
+  });
+
+  it('does not require voice/youtube/calendar fields when those flags are off', () => {
+    expect(() => validateEnv(BASE_VALID_ENV)).not.toThrow();
+  });
 });

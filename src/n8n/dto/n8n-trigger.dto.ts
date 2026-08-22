@@ -9,6 +9,7 @@ export const N8N_TRIGGER_ACTIONS = [
   'agent_prompt',
   'finance_summary',
   'patient_history',
+  'get_today_plan',
 ] as const;
 
 export class N8nTriggerDto {

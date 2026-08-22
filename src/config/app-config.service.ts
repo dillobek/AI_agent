@@ -39,6 +39,9 @@ export class AppConfigService {
       finance: this.get('FINANCE_MODULE_ENABLED'),
       patients: this.get('PATIENTS_MODULE_ENABLED'),
       dashboard: this.get('DASHBOARD_ENABLED'),
+      voice: this.get('VOICE_ENABLED'),
+      youtube: this.get('YOUTUBE_ENABLED'),
+      calendar: this.get('CALENDAR_ENABLED'),
     };
   }
 }

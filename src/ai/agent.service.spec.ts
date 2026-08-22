@@ -1,5 +1,4 @@
 import { AgentService } from './agent.service';
-import { UnknownToolError } from './tools/agent-tools.service';
 
 function makeConfig(overrides: Record<string, unknown> = {}) {
   const defaults: Record<string, unknown> = {
@@ -27,22 +26,30 @@ function makeMemory() {
   } as any;
 }
 
-function makeExecutionLog() {
-  return { record: jest.fn().mockResolvedValue(null) } as any;
+// AgentService now delegates all tool execution — including the
+// timeout/logging/error-shaping that used to live inline as
+// AgentService.executeToolSafely() — to ToolExecutionService (see
+// src/ai/tools/tool-execution.service.ts, and its own spec for coverage
+// of that shaping logic). AgentService's own tests here only need to
+// verify the orchestration loop calls it correctly and trusts its result.
+function makeToolExecution() {
+  return { executeToolSafely: jest.fn() } as any;
 }
 
 describe('AgentService', () => {
   it('returns a final answer directly when the model does not call any tool', async () => {
     const provider = { generate: jest.fn().mockResolvedValue({ text: 'Hello there.' }) } as any;
-    const tools = { getAvailableDeclarations: () => [], execute: jest.fn() } as any;
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), makeExecutionLog());
+    const tools = { getAvailableDeclarations: () => [] } as any;
+    const toolExecution = makeToolExecution();
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), toolExecution);
 
     const result = await agent.processUserCommand('hi', 'telegram:1');
     expect(result).toBe('Hello there.');
     expect(provider.generate).toHaveBeenCalledTimes(1);
+    expect(toolExecution.executeToolSafely).not.toHaveBeenCalled();
   });
 
-  it('executes a tool call, feeds the result back, and returns the final synthesized answer', async () => {
+  it('executes a tool call via ToolExecutionService, feeds the result back, and returns the final synthesized answer', async () => {
     const provider = {
       generate: jest
         .fn()
@@ -51,13 +58,14 @@ describe('AgentService', () => {
     } as any;
     const tools = {
       getAvailableDeclarations: () => [{ name: 'some_tool', description: '', parameters: { type: 'OBJECT', properties: {} } }],
-      execute: jest.fn().mockResolvedValue('tool output value'),
     } as any;
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), makeExecutionLog());
+    const toolExecution = makeToolExecution();
+    toolExecution.executeToolSafely.mockResolvedValue('tool output value');
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), toolExecution);
 
     const result = await agent.processUserCommand('do the thing', 'telegram:1');
     expect(result).toBe('Here is your answer based on the tool result.');
-    expect(tools.execute).toHaveBeenCalledWith('some_tool', { x: 1 });
+    expect(toolExecution.executeToolSafely).toHaveBeenCalledWith('some_tool', { x: 1 }, 'telegram:1', 'text', 1000);
     expect(provider.generate).toHaveBeenCalledTimes(2);
   });
 
@@ -73,15 +81,14 @@ describe('AgentService', () => {
         })
         .mockResolvedValueOnce({ text: 'combined answer' }),
     } as any;
-    const tools = {
-      getAvailableDeclarations: () => [],
-      execute: jest.fn().mockImplementation(async (name: string) => `${name}-result`),
-    } as any;
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), makeExecutionLog());
+    const tools = { getAvailableDeclarations: () => [] } as any;
+    const toolExecution = makeToolExecution();
+    toolExecution.executeToolSafely.mockImplementation(async (name: string) => `${name}-result`);
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), toolExecution);
 
     const result = await agent.processUserCommand('do two things', 'telegram:1');
     expect(result).toBe('combined answer');
-    expect(tools.execute).toHaveBeenCalledTimes(2);
+    expect(toolExecution.executeToolSafely).toHaveBeenCalledTimes(2);
   });
 
   it('stops safely once the max tool-call step limit is reached, without crashing', async () => {
@@ -89,48 +96,51 @@ describe('AgentService', () => {
     const provider = {
       generate: jest.fn().mockResolvedValue({ toolCalls: [{ id: 'c', name: 'loop_tool', args: {} }] }),
     } as any;
-    const tools = { getAvailableDeclarations: () => [], execute: jest.fn().mockResolvedValue('output') } as any;
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig({ AGENT_MAX_TOOL_CALLS: 3 }), makeExecutionLog());
+    const tools = { getAvailableDeclarations: () => [] } as any;
+    const toolExecution = makeToolExecution();
+    toolExecution.executeToolSafely.mockResolvedValue('output');
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig({ AGENT_MAX_TOOL_CALLS: 3 }), toolExecution);
 
     const result = await agent.processUserCommand('loop forever', 'telegram:1');
     expect(result).toMatch(/maximum number of steps/i);
     expect(provider.generate).toHaveBeenCalledTimes(3); // never exceeds the configured max
   });
 
-  it('turns an unknown-tool failure into a safe message instead of throwing to the caller', async () => {
+  it('feeds whatever ToolExecutionService returns straight back to the model, even a safe error string, without throwing', async () => {
+    // ToolExecutionService never rejects — an unknown-tool/disabled-module/timeout
+    // failure all come back as a plain string, per its own spec. AgentService's
+    // job is just to trust that string and keep the loop going.
     const provider = {
       generate: jest
         .fn()
         .mockResolvedValueOnce({ toolCalls: [{ id: 'c1', name: 'does_not_exist', args: {} }] })
         .mockResolvedValueOnce({ text: 'I could not do that.' }),
     } as any;
-    const tools = {
-      getAvailableDeclarations: () => [],
-      execute: jest.fn().mockRejectedValue(new UnknownToolError('does_not_exist')),
-    } as any;
-    const executionLog = makeExecutionLog();
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), executionLog);
+    const tools = { getAvailableDeclarations: () => [] } as any;
+    const toolExecution = makeToolExecution();
+    toolExecution.executeToolSafely.mockResolvedValue('Tool "does_not_exist" does not exist and cannot be called.');
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig(), toolExecution);
 
     const result = await agent.processUserCommand('call a fake tool', 'telegram:1');
     expect(result).toBe('I could not do that.');
-    expect(executionLog.record).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+    expect(provider.generate).toHaveBeenCalledTimes(2);
   });
 
   it('rejects an over-long prompt without calling the model at all', async () => {
     const provider = { generate: jest.fn() } as any;
-    const tools = { getAvailableDeclarations: () => [], execute: jest.fn() } as any;
-    const agent = new AgentService(provider, tools, makeMemory(), makeConfig({ AGENT_MAX_PROMPT_CHARS: 10 }), makeExecutionLog());
+    const tools = { getAvailableDeclarations: () => [] } as any;
+    const agent = new AgentService(provider, tools, makeMemory(), makeConfig({ AGENT_MAX_PROMPT_CHARS: 10 }), makeToolExecution());
 
-    const result = await agent.processUserCommand('this message is way too long for the limit', 'telegram:1');
+    const result = await agent.processUserCommand('this message is way too long for the limit');
     expect(result).toMatch(/too long/i);
     expect(provider.generate).not.toHaveBeenCalled();
   });
 
   it('isolates memory between channel keys', async () => {
     const provider = { generate: jest.fn().mockResolvedValue({ text: 'ok' }) } as any;
-    const tools = { getAvailableDeclarations: () => [], execute: jest.fn() } as any;
+    const tools = { getAvailableDeclarations: () => [] } as any;
     const memory = makeMemory();
-    const agent = new AgentService(provider, tools, memory, makeConfig(), makeExecutionLog());
+    const agent = new AgentService(provider, tools, memory, makeConfig(), makeToolExecution());
 
     await agent.processUserCommand('hello from user A', 'telegram:111');
     expect(memory.save).toHaveBeenCalledWith('telegram:111', expect.any(Array));

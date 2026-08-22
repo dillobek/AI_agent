@@ -27,5 +27,8 @@ export function readModuleFlagsFromEnv() {
     finance: parseBool(process.env.FINANCE_MODULE_ENABLED, true),
     patients: parseBool(process.env.PATIENTS_MODULE_ENABLED, true),
     dashboard: parseBool(process.env.DASHBOARD_ENABLED, true),
+    voice: parseBool(process.env.VOICE_ENABLED, false),
+    youtube: parseBool(process.env.YOUTUBE_ENABLED, false),
+    calendar: parseBool(process.env.CALENDAR_ENABLED, false),
   };
 }

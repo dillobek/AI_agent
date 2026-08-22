@@ -18,6 +18,10 @@ import { PatientsModule } from './patients/patients.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { N8nModule } from './n8n/n8n.module';
 import { AutonomyModule } from './autonomy/autonomy.module';
+import { YoutubeModule } from './youtube/youtube.module';
+import { CalendarModule } from './calendar/calendar.module';
+import { PlanModule } from './plan/plan.module';
+import { VoiceModule } from './voice/voice.module';
 import { readModuleFlagsFromEnv } from './config/module-flags.util';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
 
@@ -52,7 +56,11 @@ const flags = readModuleFlagsFromEnv();
     ObsidianModule,
     FinanceModule,
     PatientsModule,
+    YoutubeModule,
+    CalendarModule,
+    PlanModule,
     AiModule,
+    VoiceModule,
     DashboardModule,
     N8nModule,
     AutonomyModule,

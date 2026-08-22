@@ -20,6 +20,7 @@ export function createInMemoryPrisma() {
     auditLog: [],
     conversationSession: [],
     knowledgeDocument: [],
+    planItem: [],
   };
 
   return {
@@ -158,6 +159,24 @@ export function createInMemoryPrisma() {
       upsert: jest.fn(async ({ create }: any) => ({ id: randomUUID(), ...create })),
       update: jest.fn(async ({ data }: any) => data),
       delete: jest.fn(async () => undefined),
+    },
+
+    planItem: {
+      create: jest.fn(async ({ data }: any) => {
+        const row = { id: randomUUID(), status: 'PENDING', source: 'manual', createdAt: new Date(), updatedAt: new Date(), ...data };
+        db.planItem.push(row);
+        return row;
+      }),
+      findMany: jest.fn(async ({ where }: any) => {
+        const gte = where?.scheduledFor?.gte;
+        const lte = where?.scheduledFor?.lte;
+        return db.planItem.filter((p) => (!gte || p.scheduledFor >= gte) && (!lte || p.scheduledFor <= lte));
+      }),
+      update: jest.fn(async ({ where, data }: any) => {
+        const row = db.planItem.find((p) => p.id === where.id);
+        Object.assign(row, data, { updatedAt: new Date() });
+        return row;
+      }),
     },
 
     __db: db,

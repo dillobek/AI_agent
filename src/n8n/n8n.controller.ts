@@ -5,6 +5,7 @@ import { N8nTriggerDto } from './dto/n8n-trigger.dto';
 import { AgentService } from '../ai/agent.service';
 import { FinanceService } from '../finance/finance.service';
 import { PatientsService } from '../patients/patients.service';
+import { PlanService } from '../plan/plan.service';
 import { ExecutionLogService } from '../common/execution-log.service';
 import { RequireModule } from '../common/decorators/require-module.decorator';
 import { ModuleEnabledGuard } from '../common/guards/module-enabled.guard';
@@ -26,6 +27,7 @@ export class N8nController {
     private readonly agentService: AgentService,
     private readonly financeService: FinanceService,
     private readonly patientsService: PatientsService,
+    private readonly planService: PlanService,
     private readonly executionLog: ExecutionLogService,
   ) {}
 
@@ -53,6 +55,10 @@ export class N8nController {
         const personName = payload.personName as string | undefined;
         if (!personName) throw new BadRequestException('payload.personName is required');
         result = await this.patientsService.getPatientPrescriptions(personName);
+        break;
+      }
+      case 'get_today_plan': {
+        result = await this.planService.renderTodayPlan();
         break;
       }
       default:

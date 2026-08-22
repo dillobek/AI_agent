@@ -1,14 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { AppConfigService } from '../../config/app-config.service';
-import {
-  AiProviderAdapter,
-  ConversationTurn,
-  EmbedResult,
-  GenerateOptions,
-  GenerateResult,
-  ToolDeclaration,
-} from './ai-provider.adapter';
+import { AiProviderAdapter, ConversationTurn, EmbedResult, GenerateOptions, GenerateResult } from './ai-provider.adapter';
+import { toGeminiFunctionDeclaration } from './gemini-tool-mapper.util';
 
 /** Google Gemini implementation of `AiProviderAdapter`, using `@google/genai`. */
 @Injectable()
@@ -40,7 +34,7 @@ export class GeminiProviderAdapter implements AiProviderAdapter {
       contents,
       config: {
         systemInstruction: options.systemInstruction,
-        tools: options.tools.length ? [{ functionDeclarations: options.tools.map((t) => this.toGeminiTool(t)) }] : undefined,
+        tools: options.tools.length ? [{ functionDeclarations: options.tools.map((t) => toGeminiFunctionDeclaration(t)) }] : undefined,
       },
     });
 
@@ -100,22 +94,6 @@ export class GeminiProviderAdapter implements AiProviderAdapter {
     return {
       role: turn.role === 'model' ? ('model' as const) : ('user' as const),
       parts: [{ text: turn.text ?? '' }],
-    };
-  }
-
-  private toGeminiTool(tool: ToolDeclaration) {
-    const properties: Record<string, { type: typeof Type.STRING; description?: string; enum?: string[] }> = {};
-    for (const [key, prop] of Object.entries(tool.parameters.properties)) {
-      properties[key] = { type: Type.STRING, description: prop.description, enum: prop.enum };
-    }
-    return {
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: Type.OBJECT,
-        properties,
-        required: tool.parameters.required ?? [],
-      },
     };
   }
 

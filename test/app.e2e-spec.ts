@@ -23,6 +23,9 @@ process.env.GOOGLE_DRIVE_ENABLED = 'false';
 process.env.OBSIDIAN_ENABLED = 'false';
 process.env.RAG_ENABLED = 'false';
 process.env.N8N_ENABLED = 'false';
+process.env.VOICE_ENABLED = 'false';
+process.env.YOUTUBE_ENABLED = 'false';
+process.env.CALENDAR_ENABLED = 'false';
 process.env.GEMINI_API_KEY = ''; // not needed: no test here calls the AI agent
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -78,6 +81,14 @@ describe('AI Personal Assistant Ecosystem (e2e)', () => {
     // A disabled module should therefore fail closed with 503 regardless of authentication.
     it('returns 503 for a disabled module even without authentication', async () => {
       const res = await request(app.getHttpServer()).post('/obsidian/sync').expect(503);
+      expect(res.status).toBe(503);
+    });
+
+    // VoiceController declares the exact same guard order — confirms the
+    // new voice endpoints fail closed the same way when VOICE_ENABLED=false,
+    // before the Gemini Live token-mint call is ever attempted.
+    it('returns 503 for the voice live-token endpoint when VOICE_ENABLED is false, even without authentication', async () => {
+      const res = await request(app.getHttpServer()).post('/voice/live-token').expect(503);
       expect(res.status).toBe(503);
     });
   });

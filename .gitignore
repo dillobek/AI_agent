@@ -10,3 +10,9 @@ credentials/*
 *.log
 .DS_Store
 coverage/
+.turbo/
+.vite/
+.next/
+*.tsbuildinfo
+credentials/**/*.json
+!.github/

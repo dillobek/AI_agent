@@ -5,9 +5,10 @@ import { N8nInboundGuard } from './n8n-inbound.guard';
 import { AiModule } from '../ai/ai.module';
 import { FinanceModule } from '../finance/finance.module';
 import { PatientsModule } from '../patients/patients.module';
+import { PlanModule } from '../plan/plan.module';
 
 @Module({
-  imports: [AiModule, FinanceModule, PatientsModule],
+  imports: [AiModule, FinanceModule, PatientsModule, PlanModule],
   controllers: [N8nController],
   providers: [N8nService, N8nInboundGuard],
   exports: [N8nService],

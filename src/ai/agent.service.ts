@@ -1,10 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
-import { ExecutionLogService } from '../common/execution-log.service';
 import { randomizedDelay } from '../common/utils/delay.util';
 import { AI_PROVIDER_ADAPTER, AiProviderAdapter, ConversationTurn } from './adapters/ai-provider.adapter';
 import { PrismaConversationMemoryStore } from './adapters/prisma-conversation-memory.store';
-import { AgentToolsService, ToolArgumentError, ToolModuleDisabledError, UnknownToolError } from './tools/agent-tools.service';
+import { AgentToolsService } from './tools/agent-tools.service';
+import { ToolExecutionService } from './tools/tool-execution.service';
 import { AGENT_SYSTEM_PROMPT } from './system-prompt';
 
 /**
@@ -31,7 +31,7 @@ export class AgentService {
     private readonly tools: AgentToolsService,
     private readonly memory: PrismaConversationMemoryStore,
     private readonly config: AppConfigService,
-    private readonly executionLog: ExecutionLogService,
+    private readonly toolExecution: ToolExecutionService,
   ) {}
 
   /**
@@ -124,9 +124,14 @@ export class AgentService {
       turns.push({ role: 'model', toolCalls: result.toolCalls });
 
       // Multiple tool calls in one round are executed concurrently, each
-      // independently bounded by perCallTimeoutMs.
+      // independently bounded by perCallTimeoutMs. Logging/error-shaping
+      // lives in ToolExecutionService now — shared with the voice relay
+      // endpoint (src/voice/voice.controller.ts) so both sources get the
+      // same execution-log audit trail.
       const toolResults = await Promise.all(
-        result.toolCalls.map((call) => this.executeToolSafely(call.name, call.args, perCallTimeoutMs, channelKey)),
+        result.toolCalls.map((call) =>
+          this.toolExecution.executeToolSafely(call.name, call.args, channelKey, 'text', perCallTimeoutMs),
+        ),
       );
 
       for (let i = 0; i < result.toolCalls.length; i++) {
@@ -149,48 +154,6 @@ export class AgentService {
     await this.memory.save(channelKey, turns);
     this.logger.debug(`Agent loop for ${channelKey} completed in ${stepsTaken} step(s)`);
     return finalText;
-  }
-
-  private async executeToolSafely(
-    name: string,
-    args: unknown,
-    timeoutMs: number,
-    channelKey: string,
-  ): Promise<string> {
-    const maxOutputChars = this.config.get('AGENT_MAX_TOOL_OUTPUT_CHARS');
-
-    try {
-      const raw = await this.withTimeout(this.tools.execute(name, args), timeoutMs);
-      const output = raw.length > maxOutputChars ? `${raw.slice(0, maxOutputChars)}… (truncated)` : raw;
-
-      await this.executionLog.record({ actor: `ai-agent:${channelKey}`, toolName: name, input: args, output: { output } });
-      return output;
-    } catch (err) {
-      const safeMessage = this.toSafeToolErrorMessage(name, err);
-      await this.executionLog.record({
-        actor: `ai-agent:${channelKey}`,
-        toolName: name,
-        input: args,
-        success: false,
-        errorMsg: safeMessage,
-      });
-      return safeMessage;
-    }
-  }
-
-  /** Converts any tool failure into a message safe to feed back to the model — never a raw stack trace. */
-  private toSafeToolErrorMessage(name: string, err: unknown): string {
-    if (err instanceof UnknownToolError) {
-      return `Tool "${name}" does not exist and cannot be called.`;
-    }
-    if (err instanceof ToolModuleDisabledError) {
-      return err.message;
-    }
-    if (err instanceof ToolArgumentError) {
-      return `Tool "${name}" was called with invalid arguments: ${err.message}`;
-    }
-    this.logger.warn(`Tool "${name}" failed: ${(err as Error)?.message ?? err}`);
-    return `Tool "${name}" failed to complete. The underlying service may be unavailable — try again shortly.`;
   }
 
   private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

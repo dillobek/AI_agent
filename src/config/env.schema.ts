@@ -82,6 +82,13 @@ export const envSchema = z
     FINANCE_MODULE_ENABLED: boolEnv(true),
     PATIENTS_MODULE_ENABLED: boolEnv(true),
     DASHBOARD_ENABLED: boolEnv(true),
+    // Voice gates only the Live-session/ephemeral-token endpoint and the
+    // dashboard voice UI surface. YouTube/Calendar are separate flags
+    // because those tools are also useful from the existing text agent
+    // chat, independent of whether the microphone UI is on.
+    VOICE_ENABLED: boolEnv(false),
+    YOUTUBE_ENABLED: boolEnv(false),
+    CALENDAR_ENABLED: boolEnv(false),
 
     // ---- Telegram ----
     TELEGRAM_BOT_TOKEN: z.string().optional().default(''),
@@ -121,6 +128,11 @@ export const envSchema = z
     OBSIDIAN_API_KEY: z.string().optional().default(''),
     OBSIDIAN_ALLOW_INSECURE_TLS: boolEnv(false),
     OBSIDIAN_REQUEST_TIMEOUT_MS: intEnv(10000),
+    // Vault-relative path template for today's daily note, used only by the
+    // get_today_plan tool's best-effort Obsidian section; "{date}" is
+    // replaced with today's YYYY-MM-DD. Different vaults put daily notes in
+    // different folders — change this to match yours (e.g. "Daily/{date}.md").
+    OBSIDIAN_DAILY_NOTE_PATH_TEMPLATE: z.string().default('{date}.md'),
 
     // ---- RAG / Vector store ----
     VECTOR_STORE_PROVIDER: z.enum(['chroma', 'pgvector']).default('chroma'),
@@ -141,6 +153,24 @@ export const envSchema = z
     // ---- n8n ----
     N8N_OUTBOUND_WEBHOOK_URL: z.string().optional().default(''),
     N8N_INBOUND_SECRET: z.string().optional().default(''),
+
+    // ---- Voice assistant (Gemini Live) ----
+    // "preview" model IDs from Google change over time; check
+    // https://ai.google.dev/gemini-api/docs/live-api for the current one if
+    // this default stops working.
+    GEMINI_LIVE_MODEL: z.string().default('gemini-3.1-flash-live-preview'),
+    // How long a minted ephemeral Live token stays valid before the
+    // frontend must request a new one.
+    VOICE_LIVE_TOKEN_TTL_SECONDS: intEnv(1800),
+
+    // ---- YouTube search (for the voice/agent "play a video" tool) ----
+    YOUTUBE_API_KEY: z.string().optional().default(''),
+
+    // ---- Google Calendar (for the "today's plan" tool) ----
+    // Share this calendar with the same service account's client_email used
+    // for GOOGLE_APPLICATION_CREDENTIALS (Drive-folder-sharing pattern),
+    // granting "Make changes to events" so plan items can sync back.
+    GOOGLE_CALENDAR_ID: z.string().optional().default(''),
 
     // ---- Outbound retry / anti-flood ----
     API_CALL_DELAY_MIN_MS: intEnv(1000),
@@ -210,12 +240,18 @@ export const envSchema = z
     // The dashboard can boot and expose non-AI pages without an AI key. A
     // missing key is only fatal when an integration that invokes AI without
     // an interactive user explicitly requires it.
-    const geminiNeeded = cfg.TELEGRAM_ENABLED || cfg.PERSONAL_TELEGRAM_ENABLED || cfg.INSTAGRAM_ENABLED || cfg.N8N_ENABLED || cfg.RAG_ENABLED;
+    const geminiNeeded =
+      cfg.TELEGRAM_ENABLED ||
+      cfg.PERSONAL_TELEGRAM_ENABLED ||
+      cfg.INSTAGRAM_ENABLED ||
+      cfg.N8N_ENABLED ||
+      cfg.RAG_ENABLED ||
+      cfg.VOICE_ENABLED;
     if (geminiNeeded && cfg.AI_PROVIDER === 'gemini' && !cfg.GEMINI_API_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['GEMINI_API_KEY'],
-        message: 'GEMINI_API_KEY is required when Telegram, n8n, or RAG is enabled with AI_PROVIDER=gemini',
+        message: 'GEMINI_API_KEY is required when Telegram, n8n, RAG, or Voice is enabled with AI_PROVIDER=gemini',
       });
     }
 
@@ -257,6 +293,15 @@ export const envSchema = z
 
     if (cfg.RAG_ENABLED && cfg.VECTOR_STORE_PROVIDER === 'chroma') {
       requirePresent('CHROMA_URL', 'CHROMA_URL (required when RAG_ENABLED=true and VECTOR_STORE_PROVIDER=chroma)');
+    }
+
+    if (cfg.YOUTUBE_ENABLED) {
+      requirePresent('YOUTUBE_API_KEY', 'YOUTUBE_API_KEY (required when YOUTUBE_ENABLED=true)');
+    }
+
+    if (cfg.CALENDAR_ENABLED) {
+      requirePresent('GOOGLE_APPLICATION_CREDENTIALS', 'GOOGLE_APPLICATION_CREDENTIALS (required when CALENDAR_ENABLED=true)');
+      requirePresent('GOOGLE_CALENDAR_ID', 'GOOGLE_CALENDAR_ID (required when CALENDAR_ENABLED=true)');
     }
   });
 
