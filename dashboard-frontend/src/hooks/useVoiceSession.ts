@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { api } from '../api/client';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../lib/audio/pcm-codec';
-import recorderWorkletUrl from '../lib/audio/pcm-recorder-worklet.ts?url';
-import playerWorkletUrl from '../lib/audio/pcm-player-worklet.ts?url';
+// AudioWorklet sources use the same isolated-module model as Web Workers.
+// Vite's worker pipeline emits real `.js` chunks (rather than serving the
+// original `.ts` files, which production nginx returns with the wrong MIME).
+import recorderWorkletUrl from '../lib/audio/pcm-recorder-worklet.ts?worker&url';
+import playerWorkletUrl from '../lib/audio/pcm-player-worklet.ts?worker&url';
 
 export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
 
