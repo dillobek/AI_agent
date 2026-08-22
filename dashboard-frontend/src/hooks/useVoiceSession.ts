@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import { api } from '../api/client';
 import { arrayBufferToBase64, base64ToArrayBuffer } from '../lib/audio/pcm-codec';
+import recorderWorkletUrl from '../lib/audio/pcm-recorder-worklet.ts?url';
+import playerWorkletUrl from '../lib/audio/pcm-player-worklet.ts?url';
 
 export type VoiceStatus = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
 
@@ -398,7 +400,7 @@ export function useVoiceSession() {
 
       setupStage = 'recording audio engine';
       const recordingCtx = new AudioContext({ sampleRate: RECORD_SAMPLE_RATE });
-      await recordingCtx.audioWorklet.addModule(new URL('../lib/audio/pcm-recorder-worklet.ts', import.meta.url).href);
+      await recordingCtx.audioWorklet.addModule(recorderWorkletUrl);
       const micSource = recordingCtx.createMediaStreamSource(stream);
       const recorderNode = new AudioWorkletNode(recordingCtx, 'pcm-recorder-worklet', {
         numberOfInputs: 1,
@@ -424,7 +426,7 @@ export function useVoiceSession() {
 
       setupStage = 'playback audio engine';
       const playbackCtx = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
-      await playbackCtx.audioWorklet.addModule(new URL('../lib/audio/pcm-player-worklet.ts', import.meta.url).href);
+      await playbackCtx.audioWorklet.addModule(playerWorkletUrl);
       const playerNode = new AudioWorkletNode(playbackCtx, 'pcm-player-worklet', { outputChannelCount: [1] });
       playerNode.port.onmessage = (event: MessageEvent) => {
         if (event.data?.type === 'playback-state') {
