@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 import { AppConfigService } from '../config/app-config.service';
 import { AgentToolsService } from '../ai/tools/agent-tools.service';
 import { ToolExecutionService } from '../ai/tools/tool-execution.service';
@@ -80,7 +80,7 @@ export class VoiceService {
         // text-only session against our quota.
         liveConnectConstraints: {
           model,
-          config: { responseModalities: ['AUDIO'] },
+          config: { responseModalities: [Modality.AUDIO] },
         },
       },
     });

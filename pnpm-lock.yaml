@@ -165,6 +165,9 @@ importers:
 
   dashboard-frontend:
     dependencies:
+      '@google/genai':
+        specifier: ^1.33.0
+        version: 1.52.0(bufferutil@4.1.0)(supports-color@8.1.1)(utf-8-validate@5.0.10)
       axios:
         specifier: ^1.7.7
         version: 1.19.0(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
