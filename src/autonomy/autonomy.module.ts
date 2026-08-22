@@ -5,9 +5,10 @@ import { AutonomyController } from './autonomy.controller';
 import { PersonalAssistantService } from './personal-assistant.service';
 import { PersonalTelegramConnector } from './personal-telegram.connector';
 import { ChannelPostService } from './channel-post.service';
+import { N8nModule } from '../n8n/n8n.module';
 
 @Module({
-  imports: [AiModule, AuthModule],
+  imports: [AiModule, AuthModule, N8nModule],
   controllers: [AutonomyController],
   providers: [PersonalAssistantService, PersonalTelegramConnector, ChannelPostService],
   exports: [PersonalAssistantService, PersonalTelegramConnector],

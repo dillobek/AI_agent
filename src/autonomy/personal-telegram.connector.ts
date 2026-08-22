@@ -6,6 +6,7 @@ import { NewMessage, NewMessageEvent } from 'telegram/events';
 import { StringSession } from 'telegram/sessions';
 import { AppConfigService } from '../config/app-config.service';
 import { PersonalAssistantService } from './personal-assistant.service';
+import { N8nService } from '../n8n/n8n.service';
 
 /**
  * MTProto adapter boundary. A VPS worker authenticated to the owner's Telegram
@@ -24,6 +25,7 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
   constructor(
     private readonly assistant: PersonalAssistantService,
     private readonly config: AppConfigService,
+    private readonly n8n: N8nService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -69,6 +71,15 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
       displayName: input.displayName,
       text: input.text,
     });
+    if (this.config.get('N8N_PERSONAL_TELEGRAM_SYNC')) {
+      await this.n8n.notifyEvent('personal.telegram.message_received', {
+        chatId: input.chatId,
+        messageId: input.messageId,
+        displayName: input.displayName,
+        text: input.text,
+        decision: decision.kind,
+      });
+    }
     if (decision.kind === 'skip') this.logger.debug(`Telegram personal message skipped: ${decision.reason}`);
     return decision;
   }

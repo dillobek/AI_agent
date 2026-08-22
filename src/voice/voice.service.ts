@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  PaymentRequiredException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
@@ -129,9 +130,13 @@ export class VoiceService {
       this.logger.error(
         `OpenAI Realtime rejected the session (HTTP ${response.status}): ${body.slice(0, MAX_LOGGED_ERROR_CHARS)}`,
       );
-      throw new BadGatewayException(
-        `OpenAI Realtime rejected the session (HTTP ${response.status}): ${this.extractErrorMessage(body)}`,
-      );
+      const message = this.extractErrorMessage(body);
+      if (response.status === 429 && this.isInsufficientQuota(body)) {
+        throw new PaymentRequiredException(
+          "OpenAI balans tugagan. Jarvisdan foydalanish uchun Billing bo'limida API kreditini to'ldiring.",
+        );
+      }
+      throw new BadGatewayException(`OpenAI Realtime rejected the session (HTTP ${response.status}): ${message}`);
     }
 
     // A 200 with a non-SDP body is a real, observed failure mode. Catching
@@ -191,6 +196,16 @@ export class VoiceService {
       // Not JSON — fall through to the raw text.
     }
     return body.slice(0, 300) || 'no response body';
+  }
+
+  private isInsufficientQuota(body: string): boolean {
+    try {
+      const parsed = JSON.parse(body) as { error?: { code?: string; type?: string; message?: string } };
+      const error = parsed.error;
+      return error?.code === 'insufficient_quota' || error?.type === 'insufficient_quota' || /insufficient quota|billing/i.test(error?.message ?? '');
+    } catch {
+      return /insufficient_quota|insufficient quota|billing/i.test(body);
+    }
   }
 
   private sweepDedupeCache() {

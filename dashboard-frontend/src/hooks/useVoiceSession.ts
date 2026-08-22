@@ -41,6 +41,9 @@ function describeFailure(error: unknown): string {
 
   const response = (error as { response?: { status?: number; data?: { message?: unknown } } })?.response;
   if (response) {
+    if (response.status === 402) {
+      return "OpenAI balans tugagan. Jarvisdan foydalanish uchun Billing bo'limida API kreditini to'ldiring.";
+    }
     // The API's own message is the useful half — VoiceService now returns a
     // distinct one for a missing key, an unreachable OpenAI, and a session
     // OpenAI rejected. Nest sends `message` as a string, or as an array of
@@ -48,6 +51,9 @@ function describeFailure(error: unknown): string {
     const detail = Array.isArray(response.data?.message)
       ? (response.data?.message as unknown[]).join('; ')
       : response.data?.message;
+    if (typeof detail === 'string' && /insufficient_quota|insufficient quota|billing/i.test(detail)) {
+      return "OpenAI balans tugagan. Jarvisdan foydalanish uchun Billing bo'limida API kreditini to'ldiring.";
+    }
     if (typeof detail === 'string' && detail) return detail;
     if (response.status === 503) return 'Voice moduli serverda yoqilmagan.';
     return `Server xatosi (HTTP ${response.status ?? '?'}).`;

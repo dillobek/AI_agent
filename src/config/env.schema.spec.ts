@@ -117,14 +117,14 @@ describe('validateEnv', () => {
     ).not.toThrow();
   });
 
-  it('requires GEMINI_API_KEY when VOICE_ENABLED=true', () => {
-    expect(() => validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true' })).toThrow(/GEMINI_API_KEY/);
+  it('requires OPENAI_API_KEY when VOICE_ENABLED=true', () => {
+    expect(() => validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true' })).toThrow(/OPENAI_API_KEY/);
   });
 
-  it('accepts VOICE_ENABLED=true with a Gemini key configured', () => {
-    const result = validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true', GEMINI_API_KEY: 'some-key' });
+  it('accepts VOICE_ENABLED=true with an OpenAI key configured', () => {
+    const result = validateEnv({ ...BASE_VALID_ENV, VOICE_ENABLED: 'true', OPENAI_API_KEY: 'some-key' });
     expect(result.VOICE_ENABLED).toBe(true);
-    expect(result.GEMINI_LIVE_MODEL).toBe('gemini-3.1-flash-live-preview');
+    expect(result.OPENAI_REALTIME_VOICE).toBe('cedar');
   });
 
   it('requires YOUTUBE_API_KEY when YOUTUBE_ENABLED=true', () => {

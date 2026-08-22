@@ -156,6 +156,7 @@ export const envSchema = z
     // ---- n8n ----
     N8N_OUTBOUND_WEBHOOK_URL: z.string().optional().default(''),
     N8N_INBOUND_SECRET: z.string().optional().default(''),
+    N8N_PERSONAL_TELEGRAM_SYNC: boolEnv(false),
 
     // ---- Voice assistant (OpenAI Realtime, over WebRTC) ----
     // Realtime model IDs are versioned ("gpt-realtime-2.1"); the unsuffixed
@@ -164,7 +165,7 @@ export const envSchema = z
     OPENAI_REALTIME_MODEL: z.string().default('gpt-realtime'),
     // Output voice. It cannot be changed once the model has spoken in a
     // session, so this is a per-deployment setting, not a per-turn one.
-    OPENAI_REALTIME_VOICE: z.string().default('marin'),
+    OPENAI_REALTIME_VOICE: z.string().default('cedar'),
     // Transcriber for the user's own audio. Without it the session still
     // works, but only the assistant's half of the conversation ever
     // reaches the transcript UI.
