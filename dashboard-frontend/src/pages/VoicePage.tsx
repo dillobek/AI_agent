@@ -31,6 +31,7 @@ export default function VoicePage() {
   }, [transcript]);
 
   const active = status === 'connecting' || status === 'listening' || status === 'speaking';
+  const microphoneDenied = error === 'Microphone access was not granted.';
 
   return (
     <div className="voice-console">
@@ -49,8 +50,12 @@ export default function VoicePage() {
 
         {error && (
           <section className="voice-permission" aria-live="assertive">
-            <strong>Mikrofon ruxsati kerak</strong>
-            <p>Browser manzil satridagi qulf belgisidan Microphone uchun Allow bering. Keyin qayta urinib ko‘ring.</p>
+            <strong>{microphoneDenied ? 'Mikrofon ruxsati kerak' : 'Voice ulanishi ishlamadi'}</strong>
+            <p>
+              {microphoneDenied
+                ? 'Browser manzil satridagi qulf belgisidan Microphone uchun Allow bering. Keyin qayta urinib ko‘ring.'
+                : error}
+            </p>
             <button className="btn btn-primary" onClick={() => void start()}>Qayta ulanish</button>
           </section>
         )}
