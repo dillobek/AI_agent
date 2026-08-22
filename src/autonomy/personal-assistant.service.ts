@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { PersonalMessageDirection, PersonalPlatform } from '@prisma/client';
 import { AgentService } from '../ai/agent.service';
 import { AppConfigService } from '../config/app-config.service';
@@ -29,7 +29,7 @@ export class PersonalAssistantService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly agent: AgentService,
+    @Inject(forwardRef(() => AgentService)) private readonly agent: AgentService,
     private readonly config: AppConfigService,
     private readonly executionLog: ExecutionLogService,
   ) {}
