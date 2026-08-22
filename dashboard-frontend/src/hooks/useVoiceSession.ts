@@ -71,7 +71,7 @@ const MAX_RECONNECT_ATTEMPTS = 3;
 let idCounter = 0;
 const nextId = () => `v${++idCounter}`;
 
-function describeError(err: unknown): { message: string; moduleDisabled: boolean } {
+function describeError(err: unknown, stage = 'voice setup'): { message: string; moduleDisabled: boolean } {
   const status = (err as { response?: { status?: number } })?.response?.status;
   if (status === 503) {
     return {
@@ -94,7 +94,11 @@ function describeError(err: unknown): { message: string; moduleDisabled: boolean
   if (err instanceof DOMException && err.name === 'OverconstrainedError') {
     return { message: 'This microphone does not support the requested audio settings. Try again to use the browser defaults.', moduleDisabled: false };
   }
-  return { message: 'Could not start the voice session. Check your connection and try again.', moduleDisabled: false };
+  const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return {
+    message: `Voice setup failed at ${stage}. ${detail || 'Unknown browser error.'}`,
+    moduleDisabled: false,
+  };
 }
 
 /**
@@ -380,6 +384,7 @@ export function useVoiceSession() {
     currentOutputTranscript.current = '';
     setStatus('connecting');
 
+    let setupStage = 'microphone access';
     try {
       // Request the browser's default microphone configuration. Constraining a
       // device to a single channel can reject otherwise working Windows/USB
@@ -391,6 +396,7 @@ export function useVoiceSession() {
       }
       streamRef.current = stream;
 
+      setupStage = 'recording audio engine';
       const recordingCtx = new AudioContext({ sampleRate: RECORD_SAMPLE_RATE });
       await recordingCtx.audioWorklet.addModule(new URL('../lib/audio/pcm-recorder-worklet.ts', import.meta.url).href);
       const micSource = recordingCtx.createMediaStreamSource(stream);
@@ -416,6 +422,7 @@ export function useVoiceSession() {
       recordingCtxRef.current = recordingCtx;
       recorderNodeRef.current = recorderNode;
 
+      setupStage = 'playback audio engine';
       const playbackCtx = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
       await playbackCtx.audioWorklet.addModule(new URL('../lib/audio/pcm-player-worklet.ts', import.meta.url).href);
       const playerNode = new AudioWorkletNode(playbackCtx, 'pcm-player-worklet', { outputChannelCount: [1] });
@@ -429,11 +436,13 @@ export function useVoiceSession() {
       playerNodeRef.current = playerNode;
 
       if (stoppedRef.current) return;
+      setupStage = 'Gemini Live connection';
       await connect();
     } catch (err) {
       stoppedRef.current = true;
       teardownAudio();
-      const { message, moduleDisabled: disabled } = describeError(err);
+      console.error(`[Voice] ${setupStage} failed`, err);
+      const { message, moduleDisabled: disabled } = describeError(err, setupStage);
       setStatus('error');
       setError(message);
       setModuleDisabled(disabled);
