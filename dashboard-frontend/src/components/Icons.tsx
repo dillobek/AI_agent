@@ -191,6 +191,23 @@ export const IconPlug = (p: IconProps) => (
   </Svg>
 );
 
+export const IconMic = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="2.5" width="6" height="12" rx="3" />
+    <path d="M5.5 11a6.5 6.5 0 0013 0" />
+    <path d="M12 17.5V21M8.5 21h7" />
+  </Svg>
+);
+
+export const IconMicOff = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M9 5a3 3 0 016 0v6c0 .4-.05.78-.15 1.13M15 14.15A3 3 0 019 12V9" opacity="0.85" />
+    <path d="M5.5 11a6.5 6.5 0 009.2 5.9M18.5 11a6.47 6.47 0 01-.86 3.24" opacity="0.85" />
+    <path d="M12 17.5V21M8.5 21h7" />
+  </Svg>
+);
+
 /** Indeterminate spinner. `aria-hidden` — pair it with visible or SR-only text. */
 export const IconSpinner = ({ size = 16, className }: IconProps) => (
   <svg

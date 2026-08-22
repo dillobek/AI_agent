@@ -4,6 +4,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { AgentToolsService } from '../ai/tools/agent-tools.service';
 import { ToolExecutionService } from '../ai/tools/tool-execution.service';
 import { toGeminiFunctionDeclaration } from '../ai/adapters/gemini-tool-mapper.util';
+import { AGENT_SYSTEM_PROMPT } from '../ai/system-prompt';
 import { ModuleDisabledException } from '../common/exceptions/module-disabled.exception';
 
 export interface LiveTokenResult {
@@ -12,6 +13,8 @@ export interface LiveTokenResult {
   /** ISO timestamp — the token (and the messages it can send) stop working after this. */
   expireTime: string;
   model: string;
+  /** Safety and behavior instructions applied to the browser-side Live session. */
+  systemInstruction: string;
   /** The same tool set the text agent exposes, translated into Gemini's function-declaration shape, so the frontend doesn't need its own copy of the tool registry. */
   tools: ReturnType<typeof toGeminiFunctionDeclaration>[];
 }
@@ -92,6 +95,7 @@ export class VoiceService {
       token: authToken.name,
       expireTime,
       model,
+      systemInstruction: AGENT_SYSTEM_PROMPT,
       tools: this.tools.getAvailableDeclarations().map(toGeminiFunctionDeclaration),
     };
   }

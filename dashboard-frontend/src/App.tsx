@@ -8,6 +8,7 @@ import {
   IconChart,
   IconLogout,
   IconLogs,
+  IconMic,
   IconUsers,
 } from './components/Icons';
 import './styles/theme.css';
@@ -19,7 +20,10 @@ interface NavEntry {
   icon: ReactNode;
 }
 
-const PRIMARY: NavEntry[] = [{ to: '/agent', label: 'Agent Console', icon: <IconAgent size={17} /> }];
+const PRIMARY: NavEntry[] = [
+  { to: '/agent', label: 'Agent Console', icon: <IconAgent size={17} /> },
+  { to: '/voice', label: 'Voice Console', icon: <IconMic size={17} /> },
+];
 
 const WORKSPACE: NavEntry[] = [
   { to: '/finance', label: 'Finance', icon: <IconChart size={17} /> },

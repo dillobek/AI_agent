@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import LogsPage from './pages/LogsPage';
 import PatientsPage from './pages/PatientsPage';
 import StatusPage from './pages/StatusPage';
+import VoicePage from './pages/VoicePage';
 import './styles/theme.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -20,6 +21,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               exist to support it, not the other way around. */}
           <Route index element={<Navigate to="/agent" replace />} />
           <Route path="agent" element={<AgentPage />} />
+          <Route path="voice" element={<VoicePage />} />
           <Route path="status" element={<StatusPage />} />
           <Route path="finance" element={<FinancePage />} />
           <Route path="patients" element={<PatientsPage />} />
