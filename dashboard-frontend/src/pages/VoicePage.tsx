@@ -1,148 +1,77 @@
 import { useEffect, useRef } from 'react';
-import { IconAgent, IconMic, IconMicOff } from '../components/Icons';
+import { IconAgent, IconMicOff } from '../components/Icons';
 import { VoiceOrb } from '../components/VoiceOrb';
-import { ErrorState } from '../components/StateViews';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 import type { VoiceStatus } from '../hooks/useVoiceSession';
 import '../styles/console.css';
 
 const STATUS_LABEL: Record<VoiceStatus, string> = {
-  idle: 'Not connected',
-  connecting: 'Connecting…',
-  listening: 'Listening',
-  speaking: 'Speaking',
-  error: 'Error',
+  idle: 'Kutmoqda',
+  connecting: 'Ulanmoqda',
+  listening: 'Live',
+  speaking: 'Javob bermoqda',
+  error: 'Ruxsat kerak',
 };
 
-const STATUS_BADGE_CLASS: Record<VoiceStatus, string> = {
-  idle: 'badge-accent',
-  connecting: 'badge-warning',
-  listening: 'badge-success',
-  speaking: 'badge-success',
-  error: 'badge-danger',
-};
-
-const STATUS_DOT_CLASS: Record<VoiceStatus, string> = {
-  idle: '',
-  connecting: 'dot-warning',
-  listening: 'dot-live',
-  speaking: 'dot-live',
-  error: 'dot-danger',
-};
-
-/**
- * The push-to-talk voice console — "Ali". Mic capture, playback, and the
- * WebSocket session to Gemini Live all live inside `useVoiceSession`; this
- * page is presentation only, reusing `AgentPage`'s console/stream/composer
- * layout so the two consoles read as one product.
- *
- * Transcript text is rendered as plain text, not `MarkdownLite` — the
- * voice system prompt (`VOICE_SYSTEM_PROMPT`) explicitly instructs the
- * model not to use markdown in spoken-style replies, so there's nothing
- * for a markdown renderer to do here.
- */
+/** Entering the route requests microphone access and starts the Live session.
+ * Browsers still require a user to grant microphone permission at least once. */
 export default function VoicePage() {
   const { status, error, transcript, start, stop } = useVoiceSession();
-  const streamRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef(start);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  startRef.current = start;
 
   useEffect(() => {
-    const el = streamRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [transcript, error]);
+    void startRef.current();
+  }, []);
 
-  const connected = status === 'connecting' || status === 'listening' || status === 'speaking';
+  useEffect(() => {
+    const element = transcriptRef.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, [transcript]);
 
-  const toggle = () => {
-    if (connected) {
-      stop();
-    } else {
-      void start();
-    }
-  };
+  const active = status === 'connecting' || status === 'listening' || status === 'speaking';
 
   return (
-    <div className="console">
-      <header className="console-header">
-        <div className={`avatar ${status === 'connecting' ? 'avatar-thinking' : ''}`} aria-hidden="true">
-          <IconMic size={18} />
+    <div className="voice-console">
+      <header className="voice-console-header">
+        <div className="avatar" aria-hidden="true"><IconAgent size={18} /></div>
+        <div>
+          <h1>JARVIS</h1>
+          <p>Real-time yordamchi</p>
         </div>
-
-        <div className="grow">
-          <div className="row gap-2">
-            <h2 style={{ fontSize: 15 }}>Voice Console</h2>
-            <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>
-              <span className={`dot ${STATUS_DOT_CLASS[status]}`} />
-              {STATUS_LABEL[status]}
-            </span>
-          </div>
-          <div className="row gap-2 tiny muted" style={{ marginTop: 2 }}>
-            <span>Say "Salom Ali" or press the button below — talk naturally in Uzbek</span>
-          </div>
-        </div>
+        <span className={`voice-live-indicator voice-live-${status}`}><i /> {STATUS_LABEL[status]}</span>
       </header>
 
-      <div className="stream scroll-area" ref={streamRef}>
-        <div className="stream-inner">
-          {error && <ErrorState message={error} onRetry={() => void start()} />}
+      <main className="voice-stage">
+        <VoiceOrb status={status} />
+        {!error && <p className="voice-stage-copy">Gapiring — Ali sizni eshitadi</p>}
 
-          {!error && transcript.length === 0 && (
-            <div className="empty-hero">
-              <VoiceOrb status={status} />
-              <h1 style={{ fontSize: 26, marginTop: 22, marginBottom: 8 }}>
-                Ready to <span className="gradient-text">listen</span>
-              </h1>
-              <p className="secondary" style={{ maxWidth: 460 }}>
-                Press the microphone button and start talking. Ali can build your daily plan, find
-                a file, play a video, or read out today's report — and reply out loud.
-              </p>
+        {error && (
+          <section className="voice-permission" aria-live="assertive">
+            <strong>Mikrofon ruxsati kerak</strong>
+            <p>Browser manzil satridagi qulf belgisidan Microphone uchun Allow bering. Keyin qayta urinib ko‘ring.</p>
+            <button className="btn btn-primary" onClick={() => void start()}>Qayta ulanish</button>
+          </section>
+        )}
+      </main>
+
+      {transcript.length > 0 && (
+        <aside className="voice-transcript scroll-area" ref={transcriptRef} aria-label="Suhbat transkripti">
+          {transcript.map((message) => (
+            <div className={`voice-transcript-row voice-transcript-${message.role}`} key={message.id}>
+              <span>{message.role === 'user' ? 'Siz' : 'ALI'}</span>
+              <p>{message.text}</p>
             </div>
-          )}
+          ))}
+        </aside>
+      )}
 
-          {!error && transcript.length > 0 && (
-            <>
-              <div className="row" style={{ justifyContent: 'center', margin: '4px 0 8px' }}>
-                <VoiceOrb status={status} />
-              </div>
-
-              {transcript.map((m) =>
-                m.role === 'user' ? (
-                  <div className="msg msg-user" key={m.id}>
-                    <div className="bubble-user">{m.text}</div>
-                  </div>
-                ) : (
-                  <div className="msg" key={m.id}>
-                    <div className="avatar avatar-sm" aria-hidden="true">
-                      <IconAgent size={16} />
-                    </div>
-                    <div className="msg-agent-body">
-                      <div className="agent-name">
-                        <span className="gradient-text">Ali</span>
-                      </div>
-                      <div className="agent-text">{m.text}</div>
-                    </div>
-                  </div>
-                ),
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="composer-wrap">
-        <div className="row" style={{ justifyContent: 'center' }}>
-          <button
-            className={`ptt-btn ${connected ? 'ptt-btn-active' : ''}`}
-            onClick={toggle}
-            aria-label={connected ? 'Stop voice session' : 'Start voice session'}
-            aria-pressed={connected}
-          >
-            {connected ? <IconMicOff size={22} /> : <IconMic size={22} />}
-          </button>
-        </div>
-        <p className="tiny muted" style={{ textAlign: 'center', marginTop: 10 }}>
-          {connected ? 'Tap to end the conversation' : 'Tap to start talking'}
-        </p>
-      </div>
+      {active && (
+        <button className="voice-stop" onClick={stop} aria-label="Voice sessiyasini to‘xtatish" title="To‘xtatish">
+          <IconMicOff size={18} /> To‘xtatish
+        </button>
+      )}
     </div>
   );
 }
