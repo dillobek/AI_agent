@@ -171,7 +171,9 @@ export const envSchema = z
     OPENAI_TRANSCRIPTION_MODEL: z.string().default('whisper-1'),
     // ISO-639-1 hint for that transcriber ("uz"). Leave empty to let
     // OpenAI auto-detect the spoken language instead.
-    VOICE_LANGUAGE: z.string().default('uz'),
+    // Whisper does not currently accept the Uzbek `uz` language code. Empty
+    // omits the hint and lets the transcription service auto-detect Uzbek.
+    VOICE_LANGUAGE: z.string().default(''),
 
     // ---- Voice assistant (legacy Gemini Live path) ----
     // Kept so an existing .env still carrying these doesn't fail
