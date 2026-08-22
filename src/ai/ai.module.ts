@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { AgentService } from './agent.service';
 import { AiController } from './ai.controller';
 import { AgentToolsService } from './tools/agent-tools.service';
@@ -12,9 +12,10 @@ import { ObsidianModule } from '../obsidian/obsidian.module';
 import { YoutubeModule } from '../youtube/youtube.module';
 import { PlanModule } from '../plan/plan.module';
 import { AuthModule } from '../auth/auth.module';
+import { AutonomyModule } from '../autonomy/autonomy.module';
 
 @Module({
-  imports: [DriveModule, FinanceModule, PatientsModule, ObsidianModule, YoutubeModule, PlanModule, AuthModule, AiProviderModule],
+  imports: [DriveModule, FinanceModule, PatientsModule, ObsidianModule, YoutubeModule, PlanModule, AuthModule, AiProviderModule, forwardRef(() => AutonomyModule)],
   controllers: [AiController],
   providers: [AgentService, AgentToolsService, ToolExecutionService, PrismaConversationMemoryStore],
   // AgentToolsService/ToolExecutionService are also consumed directly by

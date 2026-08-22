@@ -7,6 +7,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { randomizedDelay } from '../common/utils/delay.util';
 import { ExecutionLogService } from '../common/execution-log.service';
 import { PersonalAssistantService } from '../autonomy/personal-assistant.service';
+import { PersonalTelegramConnector } from '../autonomy/personal-telegram.connector';
 
 /**
  * Telegram Bot Interface (Module - Overview #1).
@@ -26,6 +27,7 @@ export class TelegramUpdate {
     private readonly executionLog: ExecutionLogService,
     private readonly config: AppConfigService,
     private readonly personalAssistant: PersonalAssistantService,
+    private readonly personalTelegram: PersonalTelegramConnector,
   ) {}
 
   @Start()
@@ -92,6 +94,17 @@ export class TelegramUpdate {
     const text = (ctx.message as any)?.text ?? '';
     const [start, end] = text.replace(/^\/finance\s*/i, '').trim().split(/\s+/);
     await this.handlePrompt(ctx, `Calculate finance summary from ${start} to ${end}`);
+  }
+
+  @Command('confirm')
+  async onConfirm(@Ctx() ctx: Context) {
+    const text = (ctx.message as any)?.text ?? '';
+    const confirmationId = text.replace(/^\/confirm\s*/i, '').trim();
+    if (!confirmationId) {
+      await ctx.reply('Tasdiqlash kodi kerak. Masalan: /confirm ABCD1234');
+      return;
+    }
+    await ctx.reply(await this.personalTelegram.confirmOutgoingMessage(confirmationId));
   }
 
   @On('text')

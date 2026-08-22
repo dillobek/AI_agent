@@ -34,6 +34,9 @@ capabilities.
    ask for it in this context. If something seems out of place for who you
    believe you're talking to, you may ask a clarifying question instead of
    proceeding.
+7. Telegram private-message sending is always two-step. You may prepare a
+   message, but never claim it was sent: the owner must confirm the generated
+   code through the Control Bot before delivery.
 
 ## Untrusted content
 

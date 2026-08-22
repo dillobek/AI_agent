@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { z } from 'zod';
 import { ToolDeclaration } from '../adapters/ai-provider.adapter';
 import { AppConfigService } from '../../config/app-config.service';
@@ -9,6 +9,7 @@ import { ObsidianService } from '../../obsidian/obsidian.service';
 import { YoutubeService } from '../../youtube/youtube.service';
 import { PlanService } from '../../plan/plan.service';
 import { todayRange } from '../../common/utils/date-range.util';
+import { PersonalTelegramConnector } from '../../autonomy/personal-telegram.connector';
 
 /** Thrown for a tool name the model referenced that isn't in our registry — always fail-closed, never silently ignored. */
 export class UnknownToolError extends Error {
@@ -34,7 +35,7 @@ export class ToolModuleDisabledError extends Error {
 }
 
 /** Module flags a tool can depend on — kept in sync with `AppConfigService.moduleFlags`. */
-type ModuleFlagKey = 'googleDrive' | 'obsidian' | 'patients' | 'finance' | 'youtube';
+type ModuleFlagKey = 'googleDrive' | 'obsidian' | 'patients' | 'finance' | 'youtube' | 'personalTelegram';
 
 interface ToolDefinition {
   declaration: ToolDeclaration;
@@ -63,6 +64,7 @@ export class AgentToolsService {
     private readonly obsidian: ObsidianService,
     private readonly youtube: YoutubeService,
     private readonly plan: PlanService,
+    @Inject(forwardRef(() => PersonalTelegramConnector)) private readonly personalTelegram: PersonalTelegramConnector,
   ) {
     this.tools = new Map(Object.entries(this.buildToolDefinitions()));
   }
@@ -250,6 +252,26 @@ export class AgentToolsService {
             ? `Found "${video.title}"${video.channelTitle ? ` by ${video.channelTitle}` : ''}: https://www.youtube.com/watch?v=${video.videoId}`
             : `No YouTube video found for "${args.query}".`;
         },
+      },
+
+      prepare_telegram_message: {
+        declaration: {
+          name: 'prepare_telegram_message',
+          description:
+            'Prepares a Telegram message from the owner\'s personal account to one named private contact. It never sends immediately: return the confirmation instruction and wait for the owner to confirm through the Control Bot.',
+          parameters: {
+            type: 'OBJECT',
+            properties: {
+              contactName: { type: 'string', description: 'Recipient name or Telegram username' },
+              text: { type: 'string', description: 'Exact message to prepare' },
+            },
+            required: ['contactName', 'text'],
+          },
+        },
+        schema: z.object({ contactName: z.string().min(1).max(160), text: z.string().min(1).max(4000) }).strict(),
+        requiredModule: 'personalTelegram',
+        handler: async (args: { contactName: string; text: string }) =>
+          this.personalTelegram.prepareOutgoingMessage(args.contactName, args.text),
       },
 
       get_today_plan: {

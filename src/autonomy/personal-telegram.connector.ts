@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { createDecipheriv, createHash } from 'crypto';
+import { createDecipheriv, createHash, randomUUID } from 'crypto';
 import { PersonalPlatform } from '@prisma/client';
 import { TelegramClient } from 'telegram';
 import { NewMessage, NewMessageEvent } from 'telegram/events';
@@ -21,6 +21,8 @@ import { N8nService } from '../n8n/n8n.service';
 export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PersonalTelegramConnector.name);
   private client?: TelegramClient;
+  private readonly pendingMessages = new Map<string, { entity: unknown; displayName: string; text: string; expiresAt: number }>();
+  private readonly PENDING_MESSAGE_TTL_MS = 10 * 60 * 1000;
 
   constructor(
     private readonly assistant: PersonalAssistantService,
@@ -90,6 +92,44 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
     await this.client.sendFile(channelId, { file: imageUrl, caption });
   }
 
+  async prepareOutgoingMessage(contactName: string, text: string): Promise<string> {
+    if (!this.client) return 'Shaxsiy Telegram ulanishi hali sozlanmagan yoki ulanmagan.';
+    const normalizedName = this.normalize(contactName);
+    const normalizedText = text.trim();
+    if (!normalizedName || !normalizedText) return 'Kontakt ismi va yuboriladigan xabar kerak.';
+
+    const dialogs = (await this.client.getDialogs({ limit: 200 })) as any[];
+    const candidates = dialogs
+      .filter((dialog) => dialog?.isUser && dialog?.entity && !dialog.entity?.bot)
+      .map((dialog) => {
+        const entity = dialog.entity;
+        const displayName = [entity.firstName, entity.lastName].filter(Boolean).join(' ') || entity.username || String(entity.id);
+        return { entity, displayName, normalized: this.normalize(displayName) };
+      })
+      .filter((candidate) => candidate.normalized.includes(normalizedName) || normalizedName.includes(candidate.normalized));
+
+    if (candidates.length === 0) return `"${contactName}" nomli kontakt topilmadi. Telegramdagi to'liq ism yoki username'ni ayting.`;
+    if (candidates.length > 1) return `Bir nechta mos kontakt topildi: ${candidates.slice(0, 5).map((item) => item.displayName).join(', ')}. To'liq ism yoki username'ni aniqlashtiring.`;
+
+    this.sweepPendingMessages();
+    const confirmationId = randomUUID().slice(0, 8).toUpperCase();
+    const candidate = candidates[0];
+    this.pendingMessages.set(confirmationId, { entity: candidate.entity, displayName: candidate.displayName, text: normalizedText, expiresAt: Date.now() + this.PENDING_MESSAGE_TTL_MS });
+    return `Xabar tayyor: ${candidate.displayName}ga “${normalizedText}”. Yuborish uchun Control Botga /confirm ${confirmationId} deb yozing. Kod 10 daqiqa amal qiladi.`;
+  }
+
+  async confirmOutgoingMessage(confirmationId: string): Promise<string> {
+    if (!this.client) return 'Shaxsiy Telegram ulanishi hali sozlanmagan yoki ulanmagan.';
+    this.sweepPendingMessages();
+    const key = confirmationId.trim().toUpperCase();
+    const pending = this.pendingMessages.get(key);
+    if (!pending) return 'Tasdiqlash kodi topilmadi yoki muddati tugagan.';
+    this.pendingMessages.delete(key);
+    await this.client.sendMessage(pending.entity as any, { message: pending.text });
+    await this.n8n.notifyEvent('personal.telegram.message_sent', { displayName: pending.displayName, text: pending.text, confirmationId: key });
+    return `${pending.displayName}ga xabar yuborildi.`;
+  }
+
   private async onTelegramEvent(event: NewMessageEvent): Promise<void> {
     if (!event.isPrivate || !event.message.senderId || !this.client) return;
     const sender = await event.message.getSender();
@@ -115,5 +155,14 @@ export class PersonalTelegramConnector implements OnModuleInit, OnModuleDestroy 
     const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivBase64, 'base64'));
     decipher.setAuthTag(Buffer.from(tagBase64, 'base64'));
     return Buffer.concat([decipher.update(Buffer.from(ciphertextBase64, 'base64')), decipher.final()]).toString('utf8');
+  }
+
+  private sweepPendingMessages(): void {
+    const now = Date.now();
+    for (const [id, pending] of this.pendingMessages) if (pending.expiresAt <= now) this.pendingMessages.delete(id);
+  }
+
+  private normalize(value: string): string {
+    return value.toLocaleLowerCase('uz').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   }
 }
