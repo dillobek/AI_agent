@@ -54,7 +54,7 @@ export class AppController {
         finance: this.moduleStatus(flags.finance, !!this.config.get('FINANCE_WEBHOOK_SECRET')),
         patients: this.moduleStatus(flags.patients, true),
         dashboard: this.moduleStatus(flags.dashboard, true),
-        aiAgent: this.moduleStatus(true, !!this.config.get('GEMINI_API_KEY')),
+        aiAgent: this.moduleStatus(true, !!this.config.get('OPENAI_API_KEY')),
       },
     };
   }

@@ -74,6 +74,9 @@ importers:
       nestjs-telegraf:
         specifier: ^2.9.1
         version: 2.9.1(@nestjs/common@11.2.1(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@11.2.1)(reflect-metadata@0.2.2)(telegraf@4.16.3(supports-color@8.1.1))(typescript@5.9.3)
+      openai:
+        specifier: ^7.5.0
+        version: 7.5.0(ws@8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76)
       passport:
         specifier: ^0.7.0
         version: 0.7.0
@@ -3100,6 +3103,27 @@ packages:
   onetime@5.1.2:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
+
+  openai@7.5.0:
+    resolution: {integrity: sha512-ZbDBz8FSB8Mv8fFYIUvzTFMdV5vl93/octp1MdtK2lfYepSpfv/ewmeugpKz/cwGtFSx+YuUM4NwpZ2P55YiPA==}
+    engines: {node: '>=22.0.0'}
+    peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -7273,6 +7297,11 @@ snapshots:
   onetime@5.1.2:
     dependencies:
       mimic-fn: 2.1.0
+
+  openai@7.5.0(ws@8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10))(zod@3.25.76):
+    optionalDependencies:
+      ws: 8.21.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      zod: 3.25.76
 
   optionator@0.9.4:
     dependencies:

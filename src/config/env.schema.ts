@@ -106,7 +106,10 @@ export const envSchema = z
     CHANNEL_IMAGE_GENERATION_WEBHOOK_URL: z.string().url().optional().or(z.literal('')).default(''),
 
     // ---- AI provider (Gemini today, adapter-based so others can be added) ----
-    AI_PROVIDER: z.enum(['gemini']).default('gemini'),
+    AI_PROVIDER: z.enum(['openai']).default('openai'),
+    OPENAI_API_KEY: z.string().optional().default(''),
+    OPENAI_MODEL: z.string().default('gpt-5-mini'),
+    OPENAI_EMBEDDING_MODEL: z.string().default('text-embedding-3-small'),
     GEMINI_API_KEY: z.string().optional().default(''),
     GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
     GEMINI_EMBEDDING_MODEL: z.string().default('text-embedding-004'),
@@ -247,11 +250,11 @@ export const envSchema = z
       cfg.N8N_ENABLED ||
       cfg.RAG_ENABLED ||
       cfg.VOICE_ENABLED;
-    if (geminiNeeded && cfg.AI_PROVIDER === 'gemini' && !cfg.GEMINI_API_KEY) {
+    if (geminiNeeded && cfg.AI_PROVIDER === 'openai' && !cfg.OPENAI_API_KEY) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['GEMINI_API_KEY'],
-        message: 'GEMINI_API_KEY is required when Telegram, n8n, RAG, or Voice is enabled with AI_PROVIDER=gemini',
+        path: ['OPENAI_API_KEY'],
+        message: 'OPENAI_API_KEY is required when Telegram, n8n, RAG, or Voice is enabled with AI_PROVIDER=openai',
       });
     }
 

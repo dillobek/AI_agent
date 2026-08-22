@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { GeminiProviderAdapter } from './adapters/gemini-provider.adapter';
+import { OpenAiProviderAdapter } from './adapters/openai-provider.adapter';
 import { AI_PROVIDER_ADAPTER } from './adapters/ai-provider.adapter';
 
 /**
@@ -11,7 +11,7 @@ import { AI_PROVIDER_ADAPTER } from './adapters/ai-provider.adapter';
  * PatientsModule, which is imported by AiModule).
  */
 @Module({
-  providers: [{ provide: AI_PROVIDER_ADAPTER, useClass: GeminiProviderAdapter }],
+  providers: [{ provide: AI_PROVIDER_ADAPTER, useClass: OpenAiProviderAdapter }],
   exports: [AI_PROVIDER_ADAPTER],
 })
 export class AiProviderModule {}
